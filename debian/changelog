@@ -1,4 +1,4 @@
-networking-l2gw (2015.1.1-1) UNRELEASED; urgency=medium
+networking-l2gw (2015.1.1+git20151117.4ec821f-1) UNRELEASED; urgency=medium
 
   * Initial release (Closes: #XXXXXX).
 
