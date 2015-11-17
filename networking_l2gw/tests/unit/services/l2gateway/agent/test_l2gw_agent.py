@@ -20,7 +20,7 @@ import mock
 from neutron.common import config as common_config
 from neutron.tests import base
 
-from oslo.config import cfg
+from oslo_config import cfg
 
 from networking_l2gw.services.l2gateway.common import config
 from networking_l2gw.services.l2gateway import l2gw_agent as agent
@@ -55,4 +55,4 @@ class TestL2gwAgent(base.BaseTestCase):
         ) as (mock_config, mock_logging, mock_launch, sys_argv,
               mgr_cls, ro):
             agent.main()
-            mock_launch.assert_called_once_with(mock.ANY)
+            mock_launch.assert_called_once_with(cfg.CONF, mock.ANY)

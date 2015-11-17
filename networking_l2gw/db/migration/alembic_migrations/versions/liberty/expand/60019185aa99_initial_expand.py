@@ -1,5 +1,3 @@
-# Copyright 2015 OpenStack Foundation
-#
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
 #    a copy of the License at
@@ -13,17 +11,22 @@
 #    under the License.
 #
 
-from neutron.db.migration.cli import alembic_config
-from neutron.db.migration.cli import CONF
-import os
+"""Initial no-op Liberty expand rule.
+
+Revision ID: 60019185aa99
+Revises: kilo
+Create Date: 2015-07-16 00:00:00.000000
+
+"""
+
+from neutron.db.migration import cli
 
 
-def main():
-    config = alembic_config.Config(
-        os.path.join(os.path.dirname(__file__), 'alembic.ini'))
-    config.set_main_option(
-        'script_location',
-        'networking_l2gw.db.migration:alembic_migrations')
-    config.neutron_config = CONF
-    CONF()
-    CONF.command.func(config, CONF.command.name)
+# revision identifiers, used by Alembic.
+revision = '60019185aa99'
+down_revision = 'kilo'
+branch_labels = (cli.EXPAND_BRANCH,)
+
+
+def upgrade():
+    pass

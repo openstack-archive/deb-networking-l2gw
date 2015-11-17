@@ -12,20 +12,23 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations
 # under the License.
+
 import mock
 
 from neutron.callbacks import events
 from neutron.callbacks import resources
+from neutron.common import exceptions as exc
 from neutron import context
 from neutron import manager
 from neutron.tests.unit import testlib_api
 
 from networking_l2gw.db.l2gateway import l2gateway_db
 from networking_l2gw.services.l2gateway.common import constants
+from networking_l2gw.services.l2gateway.common import l2gw_validators
 from networking_l2gw.services.l2gateway import exceptions
 
-from oslo.utils import importutils
 from oslo_log import log as logging
+from oslo_utils import importutils
 
 DB_PLUGIN_KLASS = 'neutron.db.db_base_plugin_v2.NeutronDbPluginV2'
 LOG = logging.getLogger(__name__)
@@ -88,6 +91,14 @@ class L2GWTestCase(testlib_api.SqlTestCase):
                                                 {"name": "port1"}],
                                  "device_name": device_name}]}}
         return data
+
+    def _get_l2_gw_invalid_seg_id_data(self, name,
+                                       device_name):
+        """Get l2 gateway data helper method with invalid seg id."""
+        data = {"interfaces": [{"name": "port1",
+                                "segmentation_id": ["test"]}],
+                "device_name": device_name}
+        return [data]
 
     def _get_nw_data(self):
         return {'network': {'id': 'fake-id',
@@ -264,6 +275,14 @@ class L2GWTestCase(testlib_api.SqlTestCase):
         self.assertRaises(exceptions.L2GatewaySegmentationRequired,
                           self._create_l2gateway, data)
 
+    def test_l2_gateway_create_with_invalid_seg_id(self):
+        """Test l2 gateway create with invalid seg-id."""
+        name = "l2gw_1"
+        dev_name = "device1"
+        data = self._get_l2_gw_invalid_seg_id_data(name, dev_name)
+        self.assertRaises(exc.InvalidInput,
+                          l2gw_validators.validate_gwdevice_list, data)
+
     def test_l2_gateway_create_with_multiple_segid(self):
         """Test l2 gateway create with multiple seg id."""
         name = "l2gw_1"
@@ -286,8 +305,10 @@ class L2GWTestCase(testlib_api.SqlTestCase):
         self.assertRaises(exceptions.L2GatewayDeviceNotFound,
                           self._update_l2_gateway, l2gw_id, data_l2gw_update)
 
-    def test_l2gw_callback_update_port(self):
-        service_plugins = mock.MagicMock()
+    @mock.patch('eventlet.greenthread.spawn_n')
+    def test_l2gw_callback_update_port(self, spawn_n):
+        spawn_n.side_effect = lambda x, y, z: x(y, z)
+        service_plugins = {constants.L2GW: mock.Mock()}
         fake_context = mock.Mock()
         fake_port = mock.Mock()
         fake_kwargs = {'context': fake_context,
@@ -299,11 +320,11 @@ class L2GWTestCase(testlib_api.SqlTestCase):
                                        events.AFTER_UPDATE,
                                        mock.Mock(),
                                        **fake_kwargs)
-            service_plugins.return_value[constants.L2GW
-                                         ].add_port_mac.assert_called()
+            self.assertTrue(service_plugins[constants.L2GW].
+                            add_port_mac.called)
 
     def test_l2gw_callback_delete_port(self):
-        service_plugins = mock.MagicMock()
+        service_plugins = {constants.L2GW: mock.Mock()}
         fake_context = mock.Mock()
         fake_port = mock.Mock()
         fake_kwargs = {'context': fake_context,
@@ -315,8 +336,8 @@ class L2GWTestCase(testlib_api.SqlTestCase):
                                        events.AFTER_DELETE,
                                        mock.Mock(),
                                        **fake_kwargs)
-            service_plugins.return_value[constants.L2GW
-                                         ].delete_port_mac.assert_called()
+            self.assertTrue(service_plugins[constants.L2GW].
+                            delete_port_mac.called)
 
     def test_l2_gateway_create_output_aligned_with_input(self):
         """Test l2 gateway create output that is aligned with input dict."""

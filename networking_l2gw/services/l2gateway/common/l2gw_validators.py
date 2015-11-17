@@ -34,11 +34,11 @@ def validate_gwdevice_list(data, valid_values=None):
         for device in data:
             interface_data = device.get(constants.IFACE_NAME_ATTR)
             device_name = device.get(constants.DEVICE_ID_ATTR)
-            if not interface_data:
-                msg = _("Cannot create a gateway with an empty interfaces")
-                return msg
             if not device_name:
                 msg = _("Cannot create a gateway with an empty device_name")
+                return msg
+            if not interface_data:
+                msg = _("Cannot create a gateway with an empty interfaces")
                 return msg
             for int_dict in interface_data:
                 err_msg = attributes._validate_dict(int_dict, None)
@@ -95,12 +95,11 @@ def validate_network_mapping_list(network_mapping, check_vlan):
 
 
 def is_valid_vlan_id(seg_id):
-    msg = None
     try:
         int_seg_id = int(seg_id)
     except ValueError:
-        msg = _("segmentation_id must be a valid integer")
+        msg = _("Segmentation id must be a valid integer")
+        raise exceptions.InvalidInput(error_message=msg)
     if int_seg_id < 0 or int_seg_id >= 4095:
         msg = _("Segmentation id is out of range")
-    if msg:
         raise exceptions.InvalidInput(error_message=msg)

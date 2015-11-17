@@ -26,9 +26,9 @@ from networking_l2gw.services.l2gateway.common import topics
 from networking_l2gw.services.l2gateway import exceptions as l2gw_exc
 from networking_l2gw.services.l2gateway import plugin as l2gw_plugin
 
-from oslo.config import cfg
-from oslo import messaging
+from oslo_config import cfg
 from oslo_log import log as logging
+import oslo_messaging as messaging
 
 LOG = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ class L2GatewayOVSDBCallbacks(object):
     def update_ovsdb_changes(self, context, ovsdb_data):
         """RPC to update the changes from OVSDB in the database."""
         self.ovsdb = self.get_ovsdbdata_object(
-            n_const.OVSDB_IDENTIFIER)
+            ovsdb_data.get(n_const.OVSDB_IDENTIFIER))
         self.ovsdb.update_ovsdb_changes(context, ovsdb_data)
 
     def notify_ovsdb_states(self, context, ovsdb_states):
@@ -316,6 +316,16 @@ class OVSDBData(object):
             ps_dict = physical_switch
             ps_dict[n_const.OVSDB_IDENTIFIER] = self.ovsdb_identifier
             db.delete_physical_switch(context, ps_dict)
+        physical_switches = db.get_all_physical_switches_by_ovsdb_id(
+            context, self.ovsdb_identifier)
+        if not physical_switches:
+            logical_switches = db.get_all_logical_switches_by_ovsdb_id(
+                context, self.ovsdb_identifier)
+            if logical_switches:
+                for logical_switch in logical_switches:
+                    self.agent_rpc.delete_network(
+                        context, self.ovsdb_identifier,
+                        logical_switch.get('uuid'))
 
     def _process_deleted_physical_ports(self,
                                         context,
@@ -345,9 +355,47 @@ class OVSDBData(object):
                                                                   l2gw_id)
             vlan_bindings = db.get_all_vlan_bindings_by_physical_port(
                 context, pp_dict)
+            ls_set = set()
             for vlan_binding in vlan_bindings:
+                vlan_binding['logical_switch_id'] = vlan_binding.get(
+                    'logical_switch_uuid')
+                if vlan_binding.get('logical_switch_uuid') in ls_set:
+                    db.delete_vlan_binding(context, vlan_binding)
+                    continue
+                bindings = db.get_all_vlan_bindings_by_logical_switch(
+                    context, vlan_binding)
+                if bindings and len(bindings) == 1:
+                    self._delete_macs_from_ovsdb(
+                        context,
+                        vlan_binding.get('logical_switch_uuid'),
+                        self.ovsdb_identifier)
+                elif bindings and len(bindings) > 1:
+                    flag = True
+                    for binding in bindings:
+                        if binding[
+                           'ovsdb_identifier'] == self.ovsdb_identifier:
+                            flag = False
+                            break
+                    if flag:
+                        self._delete_macs_from_ovsdb(
+                            context,
+                            vlan_binding.get('logical_switch_uuid'),
+                            self.ovsdb_identifier)
+                ls_set.add(vlan_binding.get('logical_switch_uuid'))
                 db.delete_vlan_binding(context, vlan_binding)
             db.delete_physical_port(context, pp_dict)
+
+    def _delete_macs_from_ovsdb(self, context, logical_switch_id,
+                                ovsdb_identifier):
+        mac_list = []
+        ls_dict = {'logical_switch_id': logical_switch_id,
+                   'ovsdb_identifier': ovsdb_identifier}
+        macs = db.get_all_ucast_mac_remote_by_ls(context, ls_dict)
+        for mac in macs:
+            mac_list.append(mac.get('mac'))
+        self.agent_rpc.delete_vif_from_gateway(
+            context, ovsdb_identifier,
+            logical_switch_id, mac_list)
 
     def _process_deleted_physical_locators(self,
                                            context,

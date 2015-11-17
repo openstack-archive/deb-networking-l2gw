@@ -12,10 +12,10 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
 import contextlib
 import socket
 import ssl
-import time
 
 import eventlet
 import mock
@@ -32,9 +32,9 @@ from networking_l2gw.services.l2gateway import exceptions
 from networking_l2gw.tests.unit.services.l2gateway.agent.ovsdb import (
     test_base_connection as base_test)
 
-from oslo.config import cfg
-from oslo.serialization import jsonutils
+from oslo_config import cfg
 from oslo_log import log as logging
+from oslo_serialization import jsonutils
 
 LOG = logging.getLogger(__name__)
 
@@ -170,7 +170,7 @@ class TestOVSDBMonitor(base.BaseTestCase):
                                '_process_update_event'
                                ) as process_update_event:
             self.l2gw_ovsdb._update_event_handler(self.msg)
-            process_update_event.assert_called_with(self.msg)
+            process_update_event.assert_called_once_with(self.msg)
 
     def test_process_update_event(self):
         """Test case to test _process_update_event."""
@@ -209,7 +209,7 @@ class TestOVSDBMonitor(base.BaseTestCase):
                 self.assertTrue(proc_ucast_mac_remote.called)
                 self.assertTrue(proc_mcast_mac_local.called)
                 self.assertTrue(proc_phys_loc_set.called)
-                self.callback.assert_called()
+                self.assertTrue(self.callback.called)
 
     def test_process_response_raise_exception(self):
         """Test case to test _process_response with exception."""
@@ -219,7 +219,7 @@ class TestOVSDBMonitor(base.BaseTestCase):
                 self.assertRaises(exceptions.OVSDBError,
                                   self.l2gw_ovsdb._process_response,
                                   self.op_id)
-                resp.assert_called_with(self.op_id)
+                resp.assert_called_once_with(self.op_id)
 
     def test_process_response(self):
         """Test case to test _process_response."""
@@ -230,7 +230,7 @@ class TestOVSDBMonitor(base.BaseTestCase):
                                              }) as resp:
             with mock.patch.object(ovsdb_monitor.LOG, 'debug'):
                 self.l2gw_ovsdb._process_response(self.op_id)
-                resp.assert_called_with(self.op_id)
+                resp.assert_called_once_with(self.op_id)
 
     def test_default_echo_handler(self):
         """Test case to test _default_echo_handler."""
@@ -272,25 +272,6 @@ class TestOVSDBMonitor(base.BaseTestCase):
                 self.assertFalse(self.l2gw_ovsdb.read_on)
                 self.assertTrue(sock_close.called)
 
-    def test_rcv_thread_data(self):
-        """Test case to test _rcv_thread receives data from socket."""
-        self.assertTrue(self.l2gw_ovsdb.read_on)
-        with mock.patch.object(self.l2gw_ovsdb.socket,
-                               'recv',
-                               return_value=jsonutils.dumps(
-                                   {"key": "value"})) as sock_recv:
-            with mock.patch.object(self.l2gw_ovsdb.socket,
-                                   'close'):
-                with mock.patch.object(self.l2gw_ovsdb,
-                                       '_on_remote_message'
-                                       ) as mock_rem_msg:
-                    eventlet.greenthread.spawn_n(self.l2gw_ovsdb._rcv_thread)
-                    time.sleep(1)
-                    self.l2gw_ovsdb.read_on = False
-                    mock_rem_msg.assert_called()
-                    self.assertTrue(sock_recv.called)
-                    self.assertTrue(self.l2gw_ovsdb.connected)
-
     def test_rcv_thread_exception(self):
         """Test case to test _rcv_thread with exception."""
         with contextlib.nested(
@@ -303,56 +284,11 @@ class TestOVSDBMonitor(base.BaseTestCase):
                               'exception')
         ) as (sock_recv, sock_close, logger_call):
                 self.l2gw_ovsdb._rcv_thread()
-                logger_call.assertCalled()
+                self.assertTrue(logger_call.called)
                 self.assertTrue(sock_recv.called)
                 self.assertFalse(self.l2gw_ovsdb.connected)
                 self.assertFalse(self.l2gw_ovsdb.read_on)
                 self.assertTrue(sock_close.called)
-
-    def test_disconnect(self):
-        """Test case to test disconnect socket."""
-        with contextlib.nested(
-            mock.patch.object(base_connection.BaseConnection,
-                              'disconnect'),
-            mock.patch.object(eventlet.greenthread, 'kill')
-        ) as (mock_disc, mock_kill):
-                self.l2gw_ovsdb.disconnect()
-                mock_disc.assert_called()
-                mock_kill.assert_called()
-
-    def test_process_monitor_msg(self):
-        """Test case to test _process_monitor_msg."""
-        with contextlib.nested(
-            mock.patch.object(ovsdb_monitor.OVSDBMonitor,
-                              '_process_physical_port'),
-            mock.patch.object(ovsdb_monitor.OVSDBMonitor,
-                              '_process_physical_switch'),
-            mock.patch.object(ovsdb_monitor.OVSDBMonitor,
-                              '_process_logical_switch'),
-            mock.patch.object(ovsdb_monitor.OVSDBMonitor,
-                              '_process_ucast_macs_local'),
-            mock.patch.object(ovsdb_monitor.OVSDBMonitor,
-                              '_process_physical_locator'),
-            mock.patch.object(ovsdb_monitor.OVSDBMonitor,
-                              '_process_ucast_macs_remote'),
-            mock.patch.object(ovsdb_monitor.OVSDBMonitor,
-                              '_process_mcast_macs_local'),
-            mock.patch.object(ovsdb_monitor.OVSDBMonitor,
-                              '_process_physical_locator_set')
-        ) as(proc_phy_port,
-             proc_phy_switch, proc_logic_switch,
-             proc_ucast_mac, proc_phy_loc, proc_ucast_mac_remote,
-             proc_mcast_mac_local, proc_physical_locator_set):
-            self.l2gw_ovsdb._process_monitor_msg(self.msg1)
-            proc_phy_port.assert_called()
-            proc_phy_switch.assert_called()
-            proc_logic_switch.assert_called()
-            proc_ucast_mac.assert_called()
-            proc_phy_loc.assert_called()
-            proc_ucast_mac_remote.assert_called()
-            proc_mcast_mac_local.assert_called()
-            proc_physical_locator_set.assert_called()
-            self.callback.assert_called()
 
     def test_form_ovsdb_data(self):
         some_value = mock.Mock()
@@ -414,8 +350,8 @@ class TestOVSDBMonitor(base.BaseTestCase):
                                                        add,
                                                        port_map,
                                                        data_dict)
-                phy_port.assert_called_with(fake_id, 'fake_name', None, None,
-                                            'fake_status')
+                phy_port.assert_called_once_with(
+                    fake_id, 'fake_name', None, None, 'fake_status')
                 self.assertIn(phy_port.return_value,
                               data_dict.get('new_physical_ports'))
 
@@ -454,8 +390,8 @@ class TestOVSDBMonitor(base.BaseTestCase):
                                                        add,
                                                        port_map,
                                                        data_dict)
-                phy_port.assert_called_with(fake_id, 'fake_name', None, None,
-                                            None)
+                phy_port.assert_called_once_with(
+                    fake_id, 'fake_name', None, None, None)
                 self.assertIn(phy_port.return_value,
                               data_dict.get('new_physical_ports'))
 
@@ -491,8 +427,9 @@ class TestOVSDBMonitor(base.BaseTestCase):
                                                          data_dict)
                 self.assertIn(phy_switch.return_value,
                               data_dict['new_physical_switches'])
-                phy_switch.assert_called_with('fake_id', 'fake_name',
-                                              'fake_tunnel_ip', 'fake_status')
+                phy_switch.assert_called_once_with(
+                    'fake_id', 'fake_name',
+                    'fake_tunnel_ip', 'fake_status')
                 # test modify
                 self.l2gw_ovsdb._process_physical_switch(fake_id,
                                                          modify,
@@ -533,8 +470,8 @@ class TestOVSDBMonitor(base.BaseTestCase):
                                                          data_dict)
                 self.assertIn(phy_switch.return_value,
                               data_dict['new_physical_switches'])
-                phy_switch.assert_called_with('fake_id', 'fake_name',
-                                              'fake_tunnel_ip', None)
+                phy_switch.assert_called_once_with('fake_id', 'fake_name',
+                                                   'fake_tunnel_ip', None)
 
     def test_process_logical_switch(self):
         """Test case to process new logical_switch."""
@@ -557,8 +494,8 @@ class TestOVSDBMonitor(base.BaseTestCase):
             # test add
             self.l2gw_ovsdb._process_logical_switch(fake_id, add,
                                                     data_dict)
-            logical_switch.assert_called_with(fake_id,
-                                              fake_name, fake_tunnel_key, None)
+            logical_switch.assert_called_once_with(
+                fake_id, fake_name, fake_tunnel_key, None)
             self.assertIn(logical_switch.return_value,
                           data_dict['new_logical_switches'])
 
@@ -602,10 +539,10 @@ class TestOVSDBMonitor(base.BaseTestCase):
             # test add
             self.l2gw_ovsdb._process_ucast_macs_local(fake_id, add,
                                                       data_dict)
-            ucast_mac_local.assert_called_with(fake_id, fake_mac,
-                                               fake_logical_switch_id,
-                                               fake_locator_id,
-                                               fake_ip_address)
+            ucast_mac_local.assert_called_once_with(fake_id, fake_mac,
+                                                    fake_logical_switch_id,
+                                                    fake_locator_id,
+                                                    fake_ip_address)
             self.assertIn(ucast_mac_local.return_value,
                           data_dict['new_local_macs'])
 
@@ -650,10 +587,10 @@ class TestOVSDBMonitor(base.BaseTestCase):
             self.l2gw_ovsdb._process_ucast_macs_remote(fake_id,
                                                        add,
                                                        data_dict)
-            ucast_mac_remote.assert_called_with(fake_id, fake_mac,
-                                                fake_logical_switch_id,
-                                                fake_locator_id,
-                                                fake_ip_address)
+            ucast_mac_remote.assert_called_once_with(fake_id, fake_mac,
+                                                     fake_logical_switch_id,
+                                                     fake_locator_id,
+                                                     fake_ip_address)
             self.assertIn(ucast_mac_remote.return_value,
                           data_dict['new_remote_macs'])
             # test modify
@@ -687,7 +624,7 @@ class TestOVSDBMonitor(base.BaseTestCase):
             # test add
             self.l2gw_ovsdb._process_physical_locator(fake_id, add,
                                                       data_dict)
-            phy_locator.assert_called_with(fake_id, fake_dst_ip)
+            phy_locator.assert_called_once_with(fake_id, fake_dst_ip)
             self.assertIn(phy_locator.return_value,
                           data_dict['new_physical_locators'])
             # test delete
@@ -727,10 +664,10 @@ class TestOVSDBMonitor(base.BaseTestCase):
             # test add
             self.l2gw_ovsdb._process_mcast_macs_local(fake_id,
                                                       add, data_dict)
-            mcast_mac_local.assert_called_with(fake_id, fake_mac,
-                                               fake_logical_switch_id,
-                                               fake_locator_id,
-                                               fake_ip_address)
+            mcast_mac_local.assert_called_once_with(fake_id, fake_mac,
+                                                    fake_logical_switch_id,
+                                                    fake_locator_id,
+                                                    fake_ip_address)
             self.assertIn(mcast_mac_local.return_value,
                           data_dict['new_mlocal_macs'])
 
@@ -738,10 +675,7 @@ class TestOVSDBMonitor(base.BaseTestCase):
             self.l2gw_ovsdb._process_mcast_macs_local(fake_id,
                                                       delete,
                                                       data_dict)
-            mcast_mac_local.assert_called_with(fake_id, fake_mac,
-                                               fake_logical_switch_id,
-                                               None,
-                                               None)
+            self.assertTrue(mcast_mac_local.called)
             self.assertIn(mcast_mac_local.return_value,
                           data_dict['deleted_mlocal_macs'])
 
@@ -762,7 +696,7 @@ class TestOVSDBMonitor(base.BaseTestCase):
             self.l2gw_ovsdb._process_physical_locator_set(fake_id,
                                                           add,
                                                           data_dict)
-            phys_loc_set.assert_called_with(fake_id, fake_locators)
+            phys_loc_set.assert_called_once_with(fake_id, fake_locators)
             PhysLocatorSet = phys_loc_set.return_value
             self.assertIn(PhysLocatorSet,
                           data_dict['new_locator_sets'])
@@ -770,7 +704,93 @@ class TestOVSDBMonitor(base.BaseTestCase):
             self.l2gw_ovsdb._process_physical_locator_set(fake_id,
                                                           delete,
                                                           data_dict)
-            phys_loc_set.assert_called_with(fake_id, fake_locators)
+            self.assertTrue(phys_loc_set.called)
             PhysLocatorSet = phys_loc_set.return_value
             self.assertIn(PhysLocatorSet,
                           data_dict['deleted_locator_sets'])
+
+
+class SocketClass(object):
+    def __init__(self,
+                 connect_error=None,
+                 send_error=None,
+                 recv_error=None,
+                 rcv_data=None,
+                 sock=None,
+                 ip_addr=None):
+        self.connect_error = connect_error
+        self.rcv_data = rcv_data
+        self.send_error = send_error
+        self.recv_error = recv_error
+        self.sock = sock
+        self.ip_addr = ip_addr
+
+    def connect(self, ip_port):
+        if self.connect_error:
+            raise self.connect_error
+
+    def send(self, data):
+        if self.send_error:
+            raise self.send_error
+        return len(data)
+
+    def recv(self, length):
+        if self.recv_error:
+            raise self.recv_error
+        return self.rcv_data
+
+    def bind(self, host_port):
+        pass
+
+    def listen(self, conn):
+        pass
+
+    def accept(self):
+        return self.sock, self.ip_addr
+
+    def setsockopt(self, sock_opt, sock_reuse, mode):
+        pass
+
+
+class TestOVSDBMonitor_with_enable_manager(base.BaseTestCase):
+    def setUp(self):
+        super(TestOVSDBMonitor_with_enable_manager, self).setUp()
+        config.register_ovsdb_opts_helper(cfg.CONF)
+        cfg.CONF.set_override('enable_manager', True, 'ovsdb')
+        self.conf = mock.Mock()
+        self.callback = mock.Mock()
+        self.l2gw_ovsdb = ovsdb_monitor.OVSDBMonitor(mock.Mock(),
+                                                     self.conf,
+                                                     self.callback)
+        fakesocket = SocketClass()
+        self.l2gw_ovsdb.c_sock = fakesocket
+
+    def test_init_with_enable_manager(self):
+        self.l2gw_ovsdb.__init__(mock.Mock(), self.conf,
+                                 self.callback)
+        self.assertTrue(self.l2gw_ovsdb.enable_manager)
+        self.assertFalse(self.l2gw_ovsdb.check_monitor_thread)
+        self.assertIsNone(self.l2gw_ovsdb.check_c_sock)
+
+    def test_sock_rcv_thread_none(self):
+        with contextlib.nested(
+            mock.patch.object(base_connection.BaseConnection,
+                              '_echo_response'),
+            mock.patch.object(eventlet.greenthread, 'spawn_n'),
+            mock.patch.object(eventlet.greenthread, 'sleep'),
+            mock.patch.object(self.l2gw_ovsdb.c_sock,
+                              'recv', return_value=None),
+            mock.patch.object(base_connection.BaseConnection,
+                              'disconnect')) as (
+                mock_resp, green_thrd_spawn, green_thrd_sleep,
+                mock_rcv, mock_disconnect):
+            self.l2gw_ovsdb.check_c_sock = True
+            self.l2gw_ovsdb.read_on = True
+            self.l2gw_ovsdb._sock_rcv_thread()
+            self.assertTrue(mock_resp.called)
+            self.assertTrue(green_thrd_spawn.called)
+            self.assertTrue(green_thrd_sleep.called)
+            self.assertTrue(mock_rcv.called)
+            self.assertTrue(mock_disconnect.called)
+            self.assertFalse(self.l2gw_ovsdb.connected)
+            self.assertFalse(self.l2gw_ovsdb.read_on)

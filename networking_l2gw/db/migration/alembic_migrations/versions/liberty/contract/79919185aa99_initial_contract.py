@@ -1,6 +1,3 @@
-# Copyright (c) 2015 Hewlett-Packard Development Company, L.P.
-# All Rights Reserved
-#
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
 #    a copy of the License at
@@ -14,8 +11,22 @@
 #    under the License.
 #
 
-import pbr.version
+"""Initial no-op Liberty contract rule.
+
+Revision ID: 79919185aa99
+Revises: kilo
+Create Date: 2015-07-16 00:00:00.000000
+
+"""
+
+from neutron.db.migration import cli
 
 
-__version__ = (pbr.version.VersionInfo('python-l2gatewayclient').
-               version_string())
+# revision identifiers, used by Alembic.
+revision = '79919185aa99'
+down_revision = 'kilo'
+branch_labels = (cli.CONTRACT_BRANCH,)
+
+
+def upgrade():
+    pass

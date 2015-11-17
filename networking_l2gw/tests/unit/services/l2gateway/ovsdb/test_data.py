@@ -213,12 +213,12 @@ class TestOVSDBData(base.BaseTestCase):
                      'locator_uuid': 'fake_loc_id',
                      'dst_ip': 'fake_dst_ip',
                      'vm_ip': 'fake_vm_ip'}
-        fake_insert_dict = {'operation': 'insert'
-                            }.update(fake_dict)
-        fake_update_dict = {'operation': 'update'
-                            }.update(fake_dict)
-        fake_delete_dict = {'operation': 'delete'
-                            }.update(fake_dict)
+        fake_insert_dict = {'operation': 'insert'}
+        fake_insert_dict.update(fake_dict)
+        fake_update_dict = {'operation': 'update'}
+        fake_update_dict.update(fake_dict)
+        fake_delete_dict = {'operation': 'delete'}
+        fake_delete_dict.update(fake_dict)
         with contextlib.nested(
             mock.patch.object(
                 lib, 'get_all_pending_remote_macs_in_asc_order'),
@@ -236,18 +236,18 @@ class TestOVSDBData(base.BaseTestCase):
         ) as (mock_get_pend_recs, mock_del_pend_recs,
               mock_ls, mock_pl, mock_ucmr, mock_add_vif,
               mock_upd_vif, mock_del_vif):
-            mock_get_pend_recs.return_value = fake_insert_dict
+            mock_get_pend_recs.return_value = [fake_insert_dict]
             self.ovsdb_data.notify_ovsdb_states(
                 self.context, fake_ovsdb_states)
-            mock_add_vif.assert_called()
-            mock_get_pend_recs.return_value = fake_update_dict
+            self.assertTrue(mock_add_vif.called)
+            mock_get_pend_recs.return_value = [fake_update_dict]
             self.ovsdb_data.notify_ovsdb_states(
                 self.context, fake_ovsdb_states)
-            mock_upd_vif.assert_called()
-            mock_get_pend_recs.return_value = fake_delete_dict
+            self.assertTrue(mock_upd_vif.called)
+            mock_get_pend_recs.return_value = [fake_delete_dict]
             self.ovsdb_data.notify_ovsdb_states(
                 self.context, fake_ovsdb_states)
-            mock_del_vif.assert_called()
+            self.assertTrue(mock_del_vif.called)
 
     def test_process_new_logical_switches(self):
         fake_dict = {}
@@ -380,13 +380,27 @@ class TestOVSDBData(base.BaseTestCase):
     def test_process_deleted_physical_switches(self):
         fake_dict = {}
         fake_deleted_physical_switches = [fake_dict]
-        with mock.patch.object(lib, 'delete_physical_switch') as delete_ps:
+        fake_ls_dict = {'uuid': 'ls-uuid'}
+        fake_ls_list = [fake_ls_dict]
+        with contextlib.nested(
+            mock.patch.object(lib, 'delete_physical_switch'),
+            mock.patch.object(lib, 'get_all_physical_switches_by_ovsdb_id',
+                              return_value=False),
+            mock.patch.object(lib, 'get_all_logical_switches_by_ovsdb_id',
+                              return_value=fake_ls_list),
+            mock.patch.object(l2gw_plugin.L2gatewayAgentApi,
+                              'delete_network')) as (
+                delete_ps, get_ps, get_ls, del_network):
             self.ovsdb_data._process_deleted_physical_switches(
                 self.context, fake_deleted_physical_switches)
             self.assertIn(n_const.OVSDB_IDENTIFIER, fake_dict)
             self.assertEqual(fake_dict[n_const.OVSDB_IDENTIFIER],
                              'fake_ovsdb_id')
             delete_ps.assert_called_with(self.context, fake_dict)
+            get_ps.assert_called_with(self.context, 'fake_ovsdb_id')
+            get_ls.assert_called_with(self.context, 'fake_ovsdb_id')
+            del_network.assert_called_with(self.context, 'fake_ovsdb_id',
+                                           'ls-uuid')
 
     def test_process_deleted_physical_ports(self):
         fake_dict = {'name': 'fake_uuid', 'uuid': 'fake_name'}
@@ -418,6 +432,61 @@ class TestOVSDBData(base.BaseTestCase):
             l2gw_conn_del.assert_called_with(self.context, 'fake_uuid')
             delete_pp.assert_called_with(self.context, fake_dict)
 
+    def test_process_deleted_physical_ports_with_delete_macs(self):
+        fake_dict = {'uuid': 'fake_uuid', 'name': 'fake_name',
+                     'logical_switch_id': 'fake_ls_id',
+                     'ovsdb_identifier': 'fake_ovsdb_id'}
+        fake_deleted_physical_ports = [fake_dict]
+        fake_physical_port = {'uuid': 'fake_uuid',
+                              'name': 'fake_name',
+                              'ovsdb_identifier': 'fake_ovsdb_id'}
+        fake_physical_switch = {'uuid': 'fake_uuid',
+                                'ovsdb_identifier': 'fake_ovsdb_id',
+                                'name': 'fake_switch'}
+        vlan_binding_dict = {'logical_switch_uuid': 'fake_ls_id',
+                             'ovsdb_identifier': 'fake_ovsdb_id',
+                             'port_uuid': 'fake_uuid',
+                             'vlan': 'fake_vlan',
+                             'logical_switch_id': 'fake_ls_id'}
+        fake_vlan_binding_list = [vlan_binding_dict]
+        fake_binding_list = [vlan_binding_dict]
+        with contextlib.nested(
+            mock.patch.object(lib,
+                              'delete_physical_port'),
+            mock.patch.object(lib,
+                              'get_physical_port',
+                              return_value=fake_physical_port),
+            mock.patch.object(lib, 'get_physical_switch',
+                              return_vaue=fake_physical_switch),
+            mock.patch.object(l2gateway_db.L2GatewayMixin,
+                              '_get_l2gw_ids_by_interface_switch',
+                              return_value=['fake_uuid']),
+            mock.patch.object(l2gateway_db.L2GatewayMixin,
+                              '_delete_connection_by_l2gw_id'),
+            mock.patch.object(lib,
+                              'get_all_vlan_bindings_by_physical_port',
+                              return_value=fake_vlan_binding_list),
+            mock.patch.object(lib,
+                              'get_all_vlan_bindings_by_logical_switch',
+                              return_value=fake_binding_list),
+            mock.patch.object(data.OVSDBData, '_delete_macs_from_ovsdb'),
+            mock.patch.object(lib, 'delete_vlan_binding')
+        ) as (delete_pp, get_pp, get_ps, get_l2gw, l2gw_conn_del,
+              get_vlan_by_pp, get_vlan_by_ls, del_macs, del_vlan):
+            self.ovsdb_data._process_deleted_physical_ports(
+                self.context, fake_deleted_physical_ports)
+            self.assertIn(n_const.OVSDB_IDENTIFIER, fake_dict)
+            self.assertEqual(fake_dict[n_const.OVSDB_IDENTIFIER],
+                             'fake_ovsdb_id')
+            l2gw_conn_del.assert_called_with(self.context, 'fake_uuid')
+            get_vlan_by_pp.assert_called_with(self.context, fake_dict)
+            del_vlan.assert_called_with(self.context, vlan_binding_dict)
+            get_vlan_by_ls.assert_called_with(self.context, vlan_binding_dict)
+            del_macs.assert_called_with(self.context,
+                                        'fake_ls_id', 'fake_ovsdb_id')
+            del_vlan.assert_called_with(self.context, vlan_binding_dict)
+            delete_pp.assert_called_with(self.context, fake_dict)
+
     def test_process_deleted_physical_locators(self):
         """Test case to test _process_deleted_physical_locators.
 
@@ -446,13 +515,13 @@ class TestOVSDBData(base.BaseTestCase):
             self.ovsdb_data._process_deleted_physical_locators(
                 self.context, fake_deleted_physical_locators)
             self.assertIn(n_const.OVSDB_IDENTIFIER, fake_dict1)
-            get_ls.assert_called()
-            get_all_ps.assert_called()
-            get_fdb.assert_called()
+            self.assertTrue(get_ls.called)
+            self.assertTrue(get_all_ps.called)
+            self.assertTrue(get_fdb.called)
             self.assertEqual(fake_dict1[n_const.OVSDB_IDENTIFIER],
                              'fake_ovsdb_id')
             delete_pl.assert_called_with(self.context, fake_dict1)
-            get_agent_ips.assert_called()
+            self.assertTrue(get_agent_ips.called)
             trig_l2pop.assert_called_with(self.context,
                                           mock.ANY,
                                           'hostname')
@@ -484,13 +553,13 @@ class TestOVSDBData(base.BaseTestCase):
             self.ovsdb_data._process_deleted_physical_locators(
                 self.context, fake_deleted_physical_locators)
             self.assertIn(n_const.OVSDB_IDENTIFIER, fake_dict1)
-            get_ls.assert_called()
-            get_all_ps.assert_called()
-            get_fdb.assert_called()
+            self.assertTrue(get_ls.called)
+            self.assertTrue(get_all_ps.called)
+            self.assertTrue(get_fdb.called)
             self.assertEqual(fake_dict1[n_const.OVSDB_IDENTIFIER],
                              'fake_ovsdb_id')
-            delete_pl.assert_called_with(self.context, fake_dict1)
-            get_agent_ips.assert_called()
+            delete_pl.assert_called_once_with(self.context, fake_dict1)
+            self.assertTrue(get_agent_ips.called)
             trig_l2pop.assert_called_with(self.context,
                                           mock.ANY)
 

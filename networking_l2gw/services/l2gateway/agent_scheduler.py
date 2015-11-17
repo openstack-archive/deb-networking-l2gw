@@ -11,16 +11,18 @@
 #    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
-#    under the License.from oslo.config import cfg
-from oslo.config import cfg
+#    under the License.
+
+import random
+
+from oslo_config import cfg
 from oslo_log import log as logging
+from oslo_service import loopingcall
 
 from neutron import context as neutron_context
 from neutron.db import agents_db
 from neutron.i18n import _LE
 from neutron import manager
-from neutron.openstack.common import loopingcall
-import random
 
 from networking_l2gw.services.l2gateway.common import config
 from networking_l2gw.services.l2gateway.common import constants as srv_const
