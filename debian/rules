@@ -3,7 +3,7 @@
 UPSTREAM_GIT := git://github.com/openstack/networking-l2gw.git
 include /usr/share/openstack-pkg-tools/pkgos.make
 
-export OSLO_PACKAGE_VERSION=$(VERSION)
+export OSLO_PACKAGE_VERSION=$(shell echo '$(VERSION)' | cut -d + -f 1)
 
 %:
 	dh $@ --buildsystem=python_distutils --with python2
