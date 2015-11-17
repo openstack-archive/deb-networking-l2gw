@@ -1,5 +1,5 @@
 networking-l2gw (2015.1.1+git20151117.4ec821f-1) UNRELEASED; urgency=medium
 
-  * Initial release (Closes: #XXXXXX).
+  * Initial release (Closes: #805367).
 
  -- James Page <james.page@ubuntu.com>  Wed, 04 Nov 2015 17:37:07 +0000
