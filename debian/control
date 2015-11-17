@@ -37,10 +37,24 @@ Depends: python-babel (>= 1.3),
          python-pbr (>= 1.8),
          ${misc:Depends},
          ${python:Depends},
-Description: OpenStack virtual network service - l2 gateway extension
+Description: OpenStack virtual network service - L2 gateway extension
  Neutron provides an API to dynamically request and configure virtual networks.
  These networks connect "interfaces" from other OpenStack services (such as
  vNICs from Nova VMs). The Neutron API supports extensions to provide advanced
  network capabilities, including QoS, ACLs, and network monitoring.
  .
  This package provides the Python files for the Layer 2 gateway extension.
+
+Package: neutron-l2gateway-agent
+Architecture: all
+Section: python
+Depends: python-networking-l2gw (= ${binary:Version}),
+         ${misc:Depends},
+         ${python:Depends},
+Description: OpenStack virtual network service - L2 gateway agent
+ Neutron provides an API to dynamically request and configure virtual networks.
+ These networks connect "interfaces" from other OpenStack services (such as
+ vNICs from Nova VMs). The Neutron API supports extensions to provide advanced
+ network capabilities, including QoS, ACLs, and network monitoring.
+ .
+ This package provides the Layer 2 gateway agent.
