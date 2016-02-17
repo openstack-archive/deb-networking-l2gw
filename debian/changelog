@@ -3,6 +3,7 @@ networking-l2gw (2015.1.1+git20151117.4ec821f-2) unstable; urgency=medium
   * Added myself as uploader.
   * Manually rm /etc/init/neutron-l2gateway-agent.override in a postrm. This
     fixes unowned files after purge (Closes: #810705).
+  * VCS URLs using HTTPS.
 
  -- Thomas Goirand <zigo@debian.org>  Wed, 17 Feb 2016 16:59:01 +0000
 
