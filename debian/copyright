@@ -2,14 +2,15 @@ Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: networking-l2gw
 Source: git://github.com/openstack/networking-l2gw.git
 
-Files: debian/*
-Copyright: 2015, Canonical Ltd
-License: Apache-2.0
-
 Files: *
 Copyright: 2011-2012, OpenStack, LLC.
            2013-2015, OpenStack Foundation <openstack-dev@lists.openstack.org>
            2015 Hewlett-Packard Development Company, L.P
+License: Apache-2.0
+
+Files: debian/*
+Copyright: (c) 2015, Canonical Ltd
+           (c) 2016, Thomas Goirand <zigo@debian.org>
 License: Apache-2.0
 
 Files: specs/*
