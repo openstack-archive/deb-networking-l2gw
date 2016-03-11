@@ -1,9 +1,9 @@
-networking-l2gw (1:1.0.0-0ubuntu1) UNRELEASED; urgency=medium
+networking-l2gw (1:1.0.0-0ubuntu1) xenial; urgency=medium
 
   * New upstream release.
   * d/p/run-unit.patch: Ensure that unit tests are executed.
 
- -- James Page <james.page@ubuntu.com>  Fri, 11 Mar 2016 16:34:25 +0000
+ -- James Page <james.page@ubuntu.com>  Fri, 11 Mar 2016 17:16:52 +0000
 
 networking-l2gw (2015.1.1+git20151117.4ec821f-1) unstable; urgency=medium
 
