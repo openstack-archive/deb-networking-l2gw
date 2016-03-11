@@ -1,6 +1,7 @@
 networking-l2gw (1:1.0.0-0ubuntu1) UNRELEASED; urgency=medium
 
   * New upstream release.
+  * d/p/run-unit.patch: Ensure that unit tests are executed.
 
  -- James Page <james.page@ubuntu.com>  Fri, 11 Mar 2016 16:34:25 +0000
 
