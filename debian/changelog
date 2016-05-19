@@ -1,6 +1,7 @@
 networking-l2gw (2015.1.1+git20151117.4ec821f-3) UNRELEASED; urgency=medium
 
   * d/rules: Removed UPSTREAM_GIT with default value
+  * d/copyright: Changed source URL to https protocol
 
  -- Ondřej Nový <novy@ondrej.org>  Thu, 19 May 2016 21:00:51 +0200
 

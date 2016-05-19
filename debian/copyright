@@ -1,6 +1,6 @@
 Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: networking-l2gw
-Source: git://github.com/openstack/networking-l2gw.git
+Source: https://github.com/openstack/networking-l2gw
 
 Files: *
 Copyright: 2011-2012, OpenStack, LLC.
