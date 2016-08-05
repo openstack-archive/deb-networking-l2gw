@@ -1,9 +1,25 @@
-networking-l2gw (1:1.0.0-0ubuntu1) xenial; urgency=medium
+networking-l2gw (1:1.0.0-1) UNRELEASED; urgency=medium
 
+  [ Ondřej Nový ]
+  * d/rules: Removed UPSTREAM_GIT with default value
+  * d/copyright: Changed source URL to https protocol
+
+  [ James Page ]
   * New upstream release.
   * d/p/run-unit.patch: Ensure that unit tests are executed.
 
- -- James Page <james.page@ubuntu.com>  Fri, 11 Mar 2016 17:16:52 +0000
+ -- Ondřej Nový <novy@ondrej.org>  Thu, 19 May 2016 21:00:51 +0200
+
+networking-l2gw (2015.1.1+git20151117.4ec821f-2) unstable; urgency=medium
+
+  * Added myself as uploader.
+  * Manually rm /etc/init/neutron-l2gateway-agent.override in a postrm. This
+    fixes unowned files after purge (Closes: #810705).
+  * VCS URLs using HTTPS.
+  * Added a watch file.
+  * Fixed debian/copyright ordering.
+
+ -- Thomas Goirand <zigo@debian.org>  Wed, 17 Feb 2016 16:59:01 +0000
 
 networking-l2gw (2015.1.1+git20151117.4ec821f-1) unstable; urgency=medium
 

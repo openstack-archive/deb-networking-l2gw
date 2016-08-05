@@ -1,6 +1,5 @@
 #!/usr/bin/make -f
 
-UPSTREAM_GIT := git://github.com/openstack/networking-l2gw.git
 include /usr/share/openstack-pkg-tools/pkgos.make
 
 export OSLO_PACKAGE_VERSION=$(shell echo '$(VERSION)' | cut -d + -f 1)
