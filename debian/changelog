@@ -1,5 +1,10 @@
-networking-l2gw (2015.1.1+git20151117.4ec821f-3) UNRELEASED; urgency=medium
+networking-l2gw (1:1.0.0-1) UNRELEASED; urgency=medium
 
+  [ James Page ]
+  * New upstream release.
+  * d/p/run-unit.patch: Ensure that unit tests are executed.
+
+  [ Ondřej Nový ]
   * d/rules: Removed UPSTREAM_GIT with default value
   * d/copyright: Changed source URL to https protocol
 
