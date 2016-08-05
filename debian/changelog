@@ -1,4 +1,4 @@
-networking-l2gw (1:1.0.0-1) UNRELEASED; urgency=medium
+networking-l2gw (1:1.0.0-1) unstable; urgency=medium
 
   [ James Page ]
   * New upstream release.
@@ -8,7 +8,7 @@ networking-l2gw (1:1.0.0-1) UNRELEASED; urgency=medium
   * d/rules: Removed UPSTREAM_GIT with default value
   * d/copyright: Changed source URL to https protocol
 
- -- Ondřej Nový <novy@ondrej.org>  Thu, 19 May 2016 21:00:51 +0200
+ -- James Page <james.page@ubuntu.com>  Fri, 05 Aug 2016 17:05:52 +0100
 
 networking-l2gw (2015.1.1+git20151117.4ec821f-2) unstable; urgency=medium
 
