@@ -13,13 +13,9 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from eventlet import greenthread
-from oslo_utils import uuidutils
-
 from neutron.callbacks import events
 from neutron.callbacks import registry
 from neutron.callbacks import resources
-from neutron.common import exceptions
 from neutron import manager
 
 from networking_l2gw.db.l2gateway import db_query
@@ -31,7 +27,9 @@ from networking_l2gw.services.l2gateway.common import constants
 from networking_l2gw.services.l2gateway.common import l2gw_validators
 from networking_l2gw.services.l2gateway import exceptions as l2gw_exc
 
+from neutron_lib import exceptions
 from oslo_log import log as logging
+from oslo_utils import uuidutils
 from sqlalchemy.orm import exc as sa_orm_exc
 
 LOG = logging.getLogger(__name__)
@@ -46,9 +44,8 @@ class L2GatewayMixin(l2gateway.L2GatewayPluginBase,
     config.register_l2gw_opts_helper()
 
     def _get_l2_gateway(self, context, gw_id):
-        try:
-            gw = context.session.query(models.L2Gateway).get(gw_id)
-        except sa_orm_exc.NoResultFound:
+        gw = context.session.query(models.L2Gateway).get(gw_id)
+        if not gw:
             raise l2gw_exc.L2GatewayNotFound(gateway_id=gw_id)
         return gw
 
@@ -133,7 +130,7 @@ class L2GatewayMixin(l2gateway.L2GatewayPluginBase,
     def _retrieve_gateway_connections(self, context, gateway_id,
                                       mapping_info={}, only_one=False):
         filters = {'l2_gateway_id': [gateway_id]}
-        for k, v in mapping_info.iteritems():
+        for k, v in mapping_info.items():
             if v and k != constants.SEG_ID:
                 filters[k] = [v]
         query = self._get_collection_query(context,
@@ -147,7 +144,6 @@ class L2GatewayMixin(l2gateway.L2GatewayPluginBase,
         gw = l2_gateway[self.gateway_resource]
         tenant_id = self._get_tenant_id_for_create(context, gw)
         devices = gw['devices']
-        self._validate_any_seg_id_empty_in_interface_dict(devices)
         with context.session.begin(subtransactions=True):
                 gw_db = models.L2Gateway(
                     id=gw.get('id', uuidutils.generate_uuid()),
@@ -187,38 +183,31 @@ class L2GatewayMixin(l2gateway.L2GatewayPluginBase,
         return self._make_l2_gateway_dict(gw_db)
 
     def update_l2_gateway(self, context, id, l2_gateway):
-        """Update l2 gateway."""
-        self._admin_check(context, 'UPDATE')
+        """Update L2Gateway."""
         gw = l2_gateway[self.gateway_resource]
-        if 'devices' in gw:
-            devices = gw['devices']
+        devices = gw.get('devices')
+        dev_db = None
+        l2gw_db = None
         with context.session.begin(subtransactions=True):
-                l2gw_db = self._get_l2_gateway(context, id)
-                if l2gw_db.network_connections:
-                    raise l2gw_exc.L2GatewayInUse(gateway_id=id)
-                dev_db = self._get_l2_gateway_devices(context, id)
-                if not gw.get('devices'):
-                    l2gw_db.name = gw.get('name')
-                    return self._make_l2_gateway_dict(l2gw_db)
+            l2gw_db = self._get_l2_gateway(context, id)
+            if not devices and l2gw_db:
+                l2gw_db.name = gw.get('name')
+                return self._make_l2_gateway_dict(l2gw_db)
+            if devices:
                 for device in devices:
                     dev_name = device['device_name']
-                    dev_db = self._get_l2gw_devices_by_name_andl2gwid(context,
-                                                                      dev_name,
-                                                                      id)
-                    if not dev_db:
-                        raise l2gw_exc.L2GatewayDeviceNotFound(device_id="")
+                    dev_db = (self._get_l2gw_devices_by_name_andl2gwid(
+                        context, dev_name, id))
+                    interface_dict_list = [i for i in device['interfaces']]
                     interface_db = self._get_l2_gw_interfaces(context,
                                                               dev_db[0].id)
                     self._delete_l2_gateway_interfaces(context, interface_db)
-                    interface_dict_list = []
-                    self.validate_device_name(context, dev_name, id)
-                    for interfaces in device['interfaces']:
-                        interface_dict_list.append(interfaces)
                     self._update_interfaces_db(context, interface_dict_list,
                                                dev_db)
-        if gw.get('name'):
-            l2gw_db.name = gw.get('name')
-        return self._make_l2_gateway_dict(l2gw_db)
+        if l2gw_db:
+            if gw.get('name'):
+                l2gw_db.name = gw.get('name')
+            return self._make_l2_gateway_dict(l2gw_db)
 
     def _update_interfaces_db(self, context, interface_dict_list, device_db):
         for interfaces in interface_dict_list:
@@ -244,22 +233,15 @@ class L2GatewayMixin(l2gateway.L2GatewayPluginBase,
         """get the l2 gateway by id."""
         self._admin_check(context, 'GET')
         gw_db = self._get_l2_gateway(context, id)
-        if gw_db:
-            return self._make_l2_gateway_dict(gw_db, fields)
-        else:
-            return []
+        return self._make_l2_gateway_dict(gw_db, fields)
 
     def delete_l2_gateway(self, context, id):
         """delete the l2 gateway  by id."""
-        self._admin_check(context, 'DELETE')
-        with context.session.begin(subtransactions=True):
-            gw_db = self._get_l2_gateway(context, id)
-            if gw_db is None:
-                raise l2gw_exc.L2GatewayNotFound(gateway_id=id)
-            if gw_db.network_connections:
-                raise l2gw_exc.L2GatewayInUse(gateway_id=id)
-            context.session.delete(gw_db)
-        LOG.debug("l2 gateway '%s' was deleted.", id)
+        gw_db = self._get_l2_gateway(context, id)
+        if gw_db:
+            with context.session.begin(subtransactions=True):
+                context.session.delete(gw_db)
+            LOG.debug("l2 gateway '%s' was deleted.", id)
 
     def get_l2_gateways(self, context, filters=None, fields=None,
                         sorts=None,
@@ -295,7 +277,6 @@ class L2GatewayMixin(l2gateway.L2GatewayPluginBase,
 
     def create_l2_gateway_connection(self, context, l2_gateway_connection):
         """Create l2 gateway connection."""
-        self._admin_check(context, 'CREATE')
         gw_connection = l2_gateway_connection[self.connection_resource]
         l2_gw_id = gw_connection.get('l2_gateway_id')
         network_id = gw_connection.get('network_id')
@@ -306,10 +287,6 @@ class L2GatewayMixin(l2gateway.L2GatewayPluginBase,
         if constants.SEG_ID in gw_connection:
             segmentation_id = gw_connection.get(constants.SEG_ID)
             nw_map[constants.SEG_ID] = segmentation_id
-        is_vlan = self._is_vlan_configured_on_any_interface_for_l2gw(context,
-                                                                     l2_gw_id)
-        network_id = l2gw_validators.validate_network_mapping_list(nw_map,
-                                                                   is_vlan)
         with context.session.begin(subtransactions=True):
             gw_db = self._get_l2_gateway(context, l2_gw_id)
             tenant_id = self._get_tenant_id_for_create(context, gw_db)
@@ -356,7 +333,6 @@ class L2GatewayMixin(l2gateway.L2GatewayPluginBase,
 
     def delete_l2_gateway_connection(self, context, id):
         """Delete the l2 gateway connection by id."""
-        self._admin_check(context, 'DELETE')
         with context.session.begin(subtransactions=True):
             gw_db = self._get_l2_gateway_connection(context, id)
             context.session.delete(gw_db)
@@ -365,7 +341,7 @@ class L2GatewayMixin(l2gateway.L2GatewayPluginBase,
     def _admin_check(self, context, action):
         """Admin role check helper."""
         # TODO(selva): his check should be required if the tenant_id is
-        # specified inthe request, otherwise the policy.json do a trick
+        # specified in the request, otherwise the policy.json do a trick
         # this need further revision.
         if not context.is_admin:
             reason = _('Cannot %s resource for non admin tenant') % action
@@ -501,6 +477,73 @@ class L2GatewayMixin(l2gateway.L2GatewayPluginBase,
                 device_id=device_name)
         return gw
 
+    def validate_l2_gateway_for_create(self, context, l2_gateway):
+        self._admin_check(context, 'CREATE')
+        gw = l2_gateway[self.gateway_resource]
+        devices = gw['devices']
+        self._validate_any_seg_id_empty_in_interface_dict(devices)
+
+    def validate_l2_gateway_for_delete(self, context, l2gw_id):
+        self._admin_check(context, 'DELETE')
+        gw_db = self._get_l2_gateway(context, l2gw_id)
+        if gw_db.network_connections:
+            raise l2gw_exc.L2GatewayInUse(gateway_id=l2gw_id)
+        return
+
+    def validate_l2_gateway_for_update(self, context, id, l2_gateway):
+        self._admin_check(context, 'UPDATE')
+        gw = l2_gateway[self.gateway_resource]
+        devices = None
+        dev_db = None
+        l2gw_db = None
+        if 'devices' in gw:
+            devices = gw['devices']
+        with context.session.begin(subtransactions=True):
+            l2gw_db = self._get_l2_gateway(context, id)
+            if l2gw_db.network_connections:
+                raise l2gw_exc.L2GatewayInUse(gateway_id=id)
+            if devices:
+                for device in devices:
+                    dev_name = device['device_name']
+                    dev_db = (self._get_l2gw_devices_by_name_andl2gwid(
+                        context, dev_name, id))
+                    if not dev_db:
+                        raise l2gw_exc.L2GatewayDeviceNotFound(device_id="")
+                    self.validate_device_name(context, dev_name, id)
+
+    def validate_l2_gateway_connection_for_create(self, context,
+                                                  l2_gateway_connection):
+        self._admin_check(context, 'CREATE')
+        gw_connection = l2_gateway_connection[self.connection_resource]
+        l2_gw_id = gw_connection.get('l2_gateway_id')
+        network_id = gw_connection.get('network_id')
+        nw_map = {}
+        nw_map['network_id'] = network_id
+        nw_map['l2_gateway_id'] = l2_gw_id
+        segmentation_id = ""
+        if constants.SEG_ID in gw_connection:
+            segmentation_id = gw_connection.get(constants.SEG_ID)
+            nw_map[constants.SEG_ID] = segmentation_id
+        is_vlan = self._is_vlan_configured_on_any_interface_for_l2gw(context,
+                                                                     l2_gw_id)
+        network_id = l2gw_validators.validate_network_mapping_list(nw_map,
+                                                                   is_vlan)
+        with context.session.begin(subtransactions=True):
+            if self._retrieve_gateway_connections(context,
+                                                  l2_gw_id,
+                                                  nw_map):
+                raise l2gw_exc.L2GatewayConnectionExists(mapping=nw_map,
+                                                         gateway_id=l2_gw_id)
+
+    def validate_l2_gateway_connection_for_delete(self, context,
+                                                  l2_gateway_conn_id):
+        self._admin_check(context, 'DELETE')
+        gw_db = self._get_l2_gateway_connection(context,
+                                                l2_gateway_conn_id)
+        if gw_db is None:
+            raise l2gw_exc.L2GatewayConnectionNotFound(
+                gateway_id=l2_gateway_conn_id)
+
 
 def l2gw_callback(resource, event, trigger, **kwargs):
     l2gwservice = manager.NeutronManager.get_service_plugins().get(
@@ -509,8 +552,7 @@ def l2gw_callback(resource, event, trigger, **kwargs):
     port_dict = kwargs.get('port')
     if l2gwservice:
         if event == events.AFTER_UPDATE:
-            greenthread.spawn_n(l2gwservice.add_port_mac,
-                                context, port_dict)
+            l2gwservice.add_port_mac(context, port_dict)
         elif event == events.AFTER_DELETE:
             l2gwservice.delete_port_mac(context, port_dict)
 

@@ -14,6 +14,7 @@
 # under the License.
 # service type constants:
 L2GW = "L2GW"
+l2gw = "l2gw"
 
 AGENT_TYPE_L2GATEWAY = 'L2 Gateway agent'
 
@@ -26,7 +27,6 @@ MONITOR = 'monitor'
 OVSDB_SCHEMA_NAME = 'hardware_vtep'
 OVSDB_IDENTIFIER = 'ovsdb_identifier'
 L2GW_AGENT_TYPE = 'l2gw_agent_type'
-IFACE_NAME_ATTR = 'interface_name'
 NETWORK_ID = 'network_id'
 SEG_ID = 'segmentation_id'
 L2GATEWAY_ID = 'l2_gateway_id'
@@ -42,3 +42,6 @@ MAX_RETRIES = 1000
 L2_GATEWAY_SERVICE_PLUGIN = "Neutron L2 gateway Service Plugin"
 PORT_FAULT_STATUS_UP = "UP"
 SWITCH_FAULT_STATUS_UP = "UP"
+VXLAN = "vxlan"
+CREATE = "CREATE"
+DELETE = "DELETE"

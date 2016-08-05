@@ -17,7 +17,7 @@ function install_l2gw {
 }
 
 function configure_agent_conf {
-    cp $L2GW_DIR/etc/l2gateway_agent.ini $L2GW_CONF_FILE
+    sudo cp $L2GW_DIR/etc/l2gateway_agent.ini $L2GW_CONF_FILE
     iniset $L2GW_CONF_FILE ovsdb ovsdb_hosts $OVSDB_HOSTS
 }
 
@@ -30,8 +30,7 @@ function run_l2gw_alembic_migration {
 }
 
 function configure_l2gw_plugin {
-    cp $L2GW_DIR/etc/l2gw_plugin.ini $L2GW_PLUGIN_CONF_FILE
-   _neutron_service_plugin_class_add $L2GW_PLUGIN
+    sudo cp $L2GW_DIR/etc/l2gw_plugin.ini $L2GW_PLUGIN_CONF_FILE
 }
 
 # main loop
@@ -41,9 +40,18 @@ if is_service_enabled l2gw-plugin; then
         :
     elif [[ "$1" == "stack" && "$2" == "install" ]]; then
         install_l2gw
-        configure_l2gw_plugin
+    elif [[ "$1" == "stack" && "$2" == "pre-install" ]]; then
+        _neutron_service_plugin_class_add $L2GW_PLUGIN
     elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
+        configure_l2gw_plugin
         run_l2gw_alembic_migration
+        if is_service_enabled q-svc; then
+            echo_summary "Configuring networking-l2gw"
+            if [ "$NETWORKING_L2GW_SERVICE_DRIVER" ]; then
+                inicomment $L2GW_PLUGIN_CONF_FILE service_providers service_provider
+                iniadd $L2GW_PLUGIN_CONF_FILE service_providers service_provider $NETWORKING_L2GW_SERVICE_DRIVER
+            fi
+        fi
     elif [[ "$1" == "stack" && "$2" == "post-extra" ]]; then
         # no-op
         :

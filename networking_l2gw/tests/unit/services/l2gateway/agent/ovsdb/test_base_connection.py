@@ -15,7 +15,7 @@
 
 import eventlet
 
-import contextlib
+import os.path
 import socket
 import ssl
 import time
@@ -27,7 +27,9 @@ from neutron.tests import base
 
 from networking_l2gw.services.l2gateway.agent import l2gateway_config as conf
 from networking_l2gw.services.l2gateway.agent.ovsdb import base_connection
+from networking_l2gw.services.l2gateway.agent.ovsdb import manager
 from networking_l2gw.services.l2gateway.common import config
+from networking_l2gw.services.l2gateway.common import constants as n_const
 
 from oslo_config import cfg
 from oslo_log import log as logging
@@ -101,10 +103,9 @@ class TestBaseConnection(base.BaseTestCase):
         """Test case to test __init__."""
 
         fakesocket = SocketClass()
-        with contextlib.nested(
-            mock.patch.object(base_connection.LOG, 'debug'),
-            mock.patch.object(socket, 'socket', return_value=fakesocket)
-        ) as(logger_call, mock_sock):
+        with mock.patch.object(base_connection.LOG, 'debug') as logger_call, \
+                mock.patch.object(socket, 'socket',
+                                  return_value=fakesocket):
             self.l2gw_ovsdb.__init__(mock.Mock(), self.conf)
             self.assertTrue(self.l2gw_ovsdb.connected)
             self.assertTrue(logger_call.called)
@@ -114,13 +115,10 @@ class TestBaseConnection(base.BaseTestCase):
         """Test case to test __init__ with socket error exception."""
 
         fakesocket = SocketClass(socket.error)
-        with contextlib.nested(
-            mock.patch.object(base_connection.LOG, 'exception'),
-            mock.patch.object(base_connection.LOG, 'warning'),
-            mock.patch.object(socket, 'socket', return_value=fakesocket),
-            mock.patch.object(time, 'sleep')
-            ) as(logger_exc, logger_warn,
-                 sock_connect, mock_sleep):
+        with mock.patch.object(base_connection.LOG, 'exception') as logger_exc, \
+                mock.patch.object(base_connection.LOG, 'warning') as logger_warn, \
+                mock.patch.object(socket, 'socket', return_value=fakesocket) as sock_connect, \
+                mock.patch.object(time, 'sleep'):
             ovsdb_conf = FakeConf()
             self.assertRaises(socket.error, base_connection.BaseConnection,
                               cfg.CONF.ovsdb, ovsdb_conf)
@@ -132,13 +130,10 @@ class TestBaseConnection(base.BaseTestCase):
         """Test case to test __init__ with socket timeout exception."""
 
         fakesocket = SocketClass(socket.timeout)
-        with contextlib.nested(
-            mock.patch.object(base_connection.LOG, 'exception'),
-            mock.patch.object(base_connection.LOG, 'warning'),
-            mock.patch.object(socket, 'socket', return_value=fakesocket),
-            mock.patch.object(time, 'sleep')
-            ) as(logger_exc, logger_warn,
-                 sock_connect, mock_sleep):
+        with mock.patch.object(base_connection.LOG, 'exception') as logger_exc, \
+                mock.patch.object(base_connection.LOG, 'warning') as logger_warn, \
+                mock.patch.object(socket, 'socket', return_value=fakesocket) as sock_connect, \
+                mock.patch.object(time, 'sleep'):
             ovsdb_conf = FakeConf()
             self.assertRaises(socket.timeout, base_connection.BaseConnection,
                               cfg.CONF.ovsdb, ovsdb_conf)
@@ -182,12 +177,14 @@ class TestBaseConnection_with_enable_manager(base.BaseTestCase):
         self.conf = mock.patch.object(conf, 'L2GatewayConfig').start()
         config.register_ovsdb_opts_helper(cfg.CONF)
         cfg.CONF.set_override('enable_manager', True, 'ovsdb')
-        self.l2gw_ovsdb_conn = base_connection.BaseConnection(mock.Mock(),
-                                                              self.conf)
+        self.mgr = mock.patch.object(manager, 'OVSDBManager').start()
+        self.l2gw_ovsdb_conn = base_connection.BaseConnection(
+            mock.Mock(), self.conf, self.mgr)
         self.mock_sock = mock.patch('socket.socket').start()
         self.l2gw_ovsdb_conn.s = mock.patch('socket.socket').start()
         self.fakesocket = SocketClass()
         self.fake_ip = 'fake_ip'
+        self.l2gw_ovsdb_conn.ovsdb_conn_list = ['fake_ip']
         self.l2gw_ovsdb_conn.ovsdb_dicts = {'fake_ip': self.fakesocket}
 
     def test_init_with_enable_manager(self):
@@ -195,30 +192,54 @@ class TestBaseConnection_with_enable_manager(base.BaseTestCase):
         with mock.patch.object(eventlet.greenthread,
                                'spawn') as (mock_thread):
             self.l2gw_ovsdb_conn.__init__(mock.Mock(), self.conf)
-            self.assertEqual(self.l2gw_ovsdb_conn.s, mock.ANY)
+            self.assertEqual(mock.ANY, self.l2gw_ovsdb_conn.s)
             self.assertFalse(self.l2gw_ovsdb_conn.check_sock_rcv)
             self.assertIsNone(self.l2gw_ovsdb_conn.check_c_sock)
-            self.assertEqual(self.l2gw_ovsdb_conn.ovsdb_dicts, fake_dict)
-            self.assertEqual(self.l2gw_ovsdb_conn.ovsdb_fd_states, fake_dict)
+            self.assertEqual(fake_dict, self.l2gw_ovsdb_conn.ovsdb_dicts)
+            self.assertEqual(fake_dict, self.l2gw_ovsdb_conn.ovsdb_fd_states)
+            self.assertEqual(6632,
+                             self.l2gw_ovsdb_conn.manager_table_listening_port)
             self.assertTrue(mock_thread.called)
+
+    def test_send_monitor_msg_to_ovsdb_connection(self):
+        fake_ip = 'fake_ip'
+        self.l2gw_ovsdb_conn.ovsdb_fd_states = {fake_ip: 'fake_status'}
+        self.l2gw_ovsdb_conn.mgr.l2gw_agent_type = n_const.MONITOR
+        self.l2gw_ovsdb_conn.ovsdb_conn_list = [fake_ip]
+        with mock.patch.object(eventlet.greenthread, 'spawn_n') as (
+                mock_thread):
+            self.l2gw_ovsdb_conn._send_monitor_msg_to_ovsdb_connection(
+                fake_ip)
+            self.assertTrue(mock_thread.called)
+
+    def test_exception_for_send_monitor_msg_to_ovsdb_connection(self):
+        fake_ip = 'fake_ip'
+        self.l2gw_ovsdb_conn.ovsdb_fd_states = {fake_ip: 'fake_status'}
+        self.l2gw_ovsdb_conn.mgr.l2gw_agent_type = n_const.MONITOR
+        self.l2gw_ovsdb_conn.ovsdb_conn_list = [fake_ip]
+        with mock.patch.object(eventlet.greenthread, 'spawn_n',
+                               side_effect=Exception) as mock_thread, \
+                mock.patch.object(base_connection.LOG, 'warning') as mock_warning, \
+                mock.patch.object(self.l2gw_ovsdb_conn,
+                                  'disconnect') as mock_disconnect:
+            self.l2gw_ovsdb_conn._send_monitor_msg_to_ovsdb_connection(
+                fake_ip)
+            self.assertTrue(mock_thread.called)
+            self.assertTrue(mock_warning.called)
+            mock_disconnect.assert_called_with(fake_ip)
 
     def test_echo_response(self):
         fake_resp = {"method": "echo",
                      "params": "fake_params",
                      "id": "fake_id",
                      }
-        with contextlib.nested(
-            mock.patch.object(eventlet.greenthread, 'sleep'),
-            mock.patch.object(jsonutils, 'loads', return_value=fake_resp),
-            mock.patch.object(self.fakesocket,
-                              'recv',
-                              return_value=fake_resp),
-            mock.patch.object(self.fakesocket,
-                              'send')
-            ) as (
-                fake_thread, mock_loads,
-                mock_sock_rcv,
-                mock_sock_send):
+        with mock.patch.object(eventlet.greenthread, 'sleep') as fake_thread, \
+                mock.patch.object(jsonutils, 'loads', return_value=fake_resp) as mock_loads, \
+                mock.patch.object(self.fakesocket,
+                                  'recv',
+                                  return_value=fake_resp) as mock_sock_rcv, \
+                mock.patch.object(self.fakesocket,
+                                  'send') as mock_sock_send:
             self.l2gw_ovsdb_conn._echo_response(self.fake_ip)
             self.assertTrue(fake_thread.called)
             self.assertTrue(mock_sock_rcv.called)
@@ -227,16 +248,13 @@ class TestBaseConnection_with_enable_manager(base.BaseTestCase):
             self.assertTrue(mock_sock_send.called)
 
     def test_common_sock_rcv_thread_none(self):
-        with contextlib.nested(
-            mock.patch.object(base_connection.BaseConnection,
-                              '_echo_response'),
-            mock.patch.object(eventlet.greenthread, 'sleep'),
-            mock.patch.object(self.fakesocket,
-                              'recv', return_value=None),
-            mock.patch.object(base_connection.BaseConnection,
-                              'disconnect')) as (
-                mock_resp, green_thrd_sleep,
-                mock_rcv, mock_disconnect):
+        with mock.patch.object(base_connection.BaseConnection,
+                               '_echo_response') as mock_resp, \
+                mock.patch.object(eventlet.greenthread, 'sleep') as green_thrd_sleep, \
+                mock.patch.object(self.fakesocket,
+                                  'recv', return_value=None) as mock_rcv, \
+                mock.patch.object(base_connection.BaseConnection,
+                                  'disconnect') as mock_disconnect:
             self.l2gw_ovsdb_conn.check_c_sock = True
             self.l2gw_ovsdb_conn.read_on = True
             self.l2gw_ovsdb_conn._common_sock_rcv_thread(self.fake_ip)
@@ -248,7 +266,67 @@ class TestBaseConnection_with_enable_manager(base.BaseTestCase):
             self.assertFalse(self.l2gw_ovsdb_conn.read_on)
 
     def test_disconnect_with_enable_manager(self):
+        fake_ip = 'fake_ip'
+        self.l2gw_ovsdb_conn.ovsdb_fd_states = {fake_ip: 'fake_status'}
+        self.l2gw_ovsdb_conn.ovsdb_conn_list = [fake_ip]
         with mock.patch.object(self.fakesocket,
                                'close') as (mock_close):
-            self.l2gw_ovsdb_conn.disconnect(self.fake_ip)
+            self.l2gw_ovsdb_conn.disconnect(fake_ip)
             self.assertTrue(mock_close.called)
+            self.assertNotIn(fake_ip, self.l2gw_ovsdb_conn.ovsdb_fd_states)
+            self.assertNotIn(fake_ip, self.l2gw_ovsdb_conn.ovsdb_conn_list)
+
+    def test_get_ovsdb_ip_mapping(self):
+        expected_ovsdb_ip_mapping = {'10.10.10.10': 'ovsdb1'}
+        cfg.CONF.set_override('ovsdb_hosts',
+                              'ovsdb1:10.10.10.10:6632',
+                              'ovsdb')
+        return_mapping = self.l2gw_ovsdb_conn._get_ovsdb_ip_mapping()
+        self.assertEqual(expected_ovsdb_ip_mapping, return_mapping)
+
+    def test_is_ssl_configured(self):
+        self.l2gw_ovsdb_conn.ip_ovsdb_mapping = {'10.10.10.10': 'ovsdb1'}
+        cfg.CONF.set_override('l2_gw_agent_priv_key_base_path',
+                              '/home',
+                              'ovsdb')
+        cfg.CONF.set_override('l2_gw_agent_cert_base_path',
+                              '/home',
+                              'ovsdb')
+        cfg.CONF.set_override('l2_gw_agent_ca_cert_base_path',
+                              '/home',
+                              'ovsdb')
+        with mock.patch.object(os.path, 'isfile', return_value=True) as mock_isfile, \
+                mock.patch.object(base_connection.LOG, 'error') as mock_error, \
+                mock.patch.object(ssl, 'wrap_socket') as mock_wrap_sock:
+            self.l2gw_ovsdb_conn._is_ssl_configured('10.10.10.10',
+                                                    self.mock_sock)
+            self.assertTrue(mock_isfile.called)
+            self.assertTrue(mock_wrap_sock.called)
+            self.assertFalse(mock_error.called)
+            mock_wrap_sock.assert_called_with(
+                self.mock_sock,
+                server_side=True,
+                keyfile='/home/ovsdb1.key',
+                certfile='/home/ovsdb1.cert',
+                ssl_version=ssl.PROTOCOL_SSLv23,
+                ca_certs='/home/ovsdb1.ca_cert')
+
+    def test_is_ssl_configured_for_certs_not_found(self):
+        self.l2gw_ovsdb_conn.ip_ovsdb_mapping = {'10.10.10.10': 'ovsdb1'}
+        cfg.CONF.set_override('l2_gw_agent_priv_key_base_path',
+                              '/home/',
+                              'ovsdb')
+        cfg.CONF.set_override('l2_gw_agent_cert_base_path',
+                              '/home/',
+                              'ovsdb')
+        cfg.CONF.set_override('l2_gw_agent_ca_cert_base_path',
+                              '/home/',
+                              'ovsdb')
+        with mock.patch.object(os.path, 'isfile', return_value=False) as mock_isfile, \
+                mock.patch.object(base_connection.LOG, 'error') as mock_error, \
+                mock.patch.object(ssl, 'wrap_socket') as mock_wrap_sock:
+            self.l2gw_ovsdb_conn._is_ssl_configured('10.10.10.10',
+                                                    self.mock_sock)
+            self.assertTrue(mock_isfile.called)
+            self.assertFalse(mock_wrap_sock.called)
+            self.assertTrue(mock_error.called)

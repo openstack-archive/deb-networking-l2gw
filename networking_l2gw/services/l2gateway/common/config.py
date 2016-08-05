@@ -25,13 +25,10 @@ OVSDB_OPTS = [
                default='host1:127.0.0.1:6632',
                help=_("OVSDB server name:host/IP:port")),
     cfg.StrOpt('l2_gw_agent_priv_key_base_path',
-               default=None,
                help=_('L2 gateway agent private key')),
     cfg.StrOpt('l2_gw_agent_cert_base_path',
-               default=None,
                help=_('L2 gateway agent public certificate')),
     cfg.StrOpt('l2_gw_agent_ca_cert_base_path',
-               default=None,
                help=_('Trusted issuer CA cert')),
     cfg.IntOpt('periodic_interval',
                default=20,
@@ -39,6 +36,12 @@ OVSDB_OPTS = [
     cfg.BoolOpt('enable_manager',
                 default=False,
                 help=_('Set to True if ovsdb Manager manages the client')),
+    cfg.PortOpt('manager_table_listening_port',
+                default=6632,
+                help=_('Set port number for l2gw agent, so that it can '
+                       'listen to whenever its IP is entered in manager '
+                       'table of ovsdb server, For Ex: tcp:x.x.x.x:6640, '
+                       'where x.x.x.x is IP of l2gw agent')),
     cfg.IntOpt('max_connection_retries',
                default=10,
                help=_('Maximum number of retries to open a socket '

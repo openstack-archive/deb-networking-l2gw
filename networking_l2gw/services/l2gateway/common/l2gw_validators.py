@@ -13,9 +13,10 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from neutron.api.v2 import attributes
-from neutron.common import exceptions
+from neutron_lib.api import validators
+from neutron_lib import exceptions
 
+from networking_l2gw._i18n import _
 from networking_l2gw.services.l2gateway.common import constants
 
 ALLOWED_CONNECTION_ATTRIBUTES = set((constants.NETWORK_ID,
@@ -40,10 +41,16 @@ def validate_gwdevice_list(data, valid_values=None):
             if not interface_data:
                 msg = _("Cannot create a gateway with an empty interfaces")
                 return msg
+            if not isinstance(interface_data, list):
+                msg = _("interfaces format is not a type list of dicts")
+                return msg
             for int_dict in interface_data:
-                err_msg = attributes._validate_dict(int_dict, None)
+                if not isinstance(int_dict, dict):
+                    msg = _("interfaces format is not a type dict")
+                    return msg
+                err_msg = validators.validate_dict(int_dict, None)
                 if not int_dict.get('name'):
-                    msg = _("Cannot create a gateway with an empty"
+                    msg = _("Cannot create a gateway with an empty "
                             "interface name")
                     return msg
                 if constants.SEG_ID in int_dict:
@@ -77,7 +84,7 @@ def validate_network_mapping_list(network_mapping, check_vlan):
     if not network_mapping.get('segmentation_id'):
         if check_vlan is False:
             raise exceptions.InvalidInput(
-                error_message=_("Segmentation id must be specified in create"
+                error_message=_("Segmentation id must be specified in create "
                                 "l2gateway connections"))
     network_id = network_mapping.get(constants.NETWORK_ID)
     if not network_id:

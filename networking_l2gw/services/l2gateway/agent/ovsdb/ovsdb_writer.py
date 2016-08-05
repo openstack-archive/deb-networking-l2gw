@@ -20,9 +20,7 @@ from oslo_log import log as logging
 from oslo_serialization import jsonutils
 from oslo_utils import excutils
 
-from neutron.i18n import _LE
-from neutron.i18n import _LW
-
+from networking_l2gw._i18n import _LE, _LW
 from networking_l2gw.services.l2gateway.agent.ovsdb import base_connection
 from networking_l2gw.services.l2gateway.common import constants as n_const
 from networking_l2gw.services.l2gateway.common import ovsdb_schema
@@ -33,8 +31,9 @@ LOG = logging.getLogger(__name__)
 
 class OVSDBWriter(base_connection.BaseConnection):
     """Performs transactions to OVSDB server tables."""
-    def __init__(self, conf, gw_config):
-        super(OVSDBWriter, self).__init__(conf, gw_config)
+    def __init__(self, conf, gw_config, mgr=None):
+        super(OVSDBWriter, self).__init__(conf, gw_config, mgr=None)
+        self.mgr = mgr
 
     def _process_response(self, op_id):
         result = self._response(op_id)
@@ -216,6 +215,7 @@ class OVSDBWriter(base_connection.BaseConnection):
     def update_connection_to_gateway(self, logical_switch_dict,
                                      locator_dicts, mac_dicts,
                                      port_dicts, ovsdb_identifier,
+                                     op_method,
                                      rcv_required=True):
         """Updates Physical Port's VNI to VLAN binding."""
         # Form the JSON Query so as to update the physical port with the
@@ -223,7 +223,8 @@ class OVSDBWriter(base_connection.BaseConnection):
         update_dicts = self._get_bindings_to_update(logical_switch_dict,
                                                     locator_dicts,
                                                     mac_dicts,
-                                                    port_dicts)
+                                                    port_dicts,
+                                                    op_method)
         op_id = str(random.getrandbits(128))
         query = {"method": "transact",
                  "params": update_dicts,
@@ -267,7 +268,7 @@ class OVSDBWriter(base_connection.BaseConnection):
                 return
 
     def _get_bindings_to_update(self, l_switch_dict, locator_dicts,
-                                mac_dicts, port_dicts):
+                                mac_dicts, port_dicts, op_method):
         # For connection-create, there are two cases to be handled
         # Case 1: VMs exist in a network on compute nodes.
         #         Connection request will contain locators, ports, MACs and
@@ -336,7 +337,7 @@ class OVSDBWriter(base_connection.BaseConnection):
                                          params)
 
         # Use ports
-        self._form_ports(ls_list, port_list, params)
+        self._form_ports(ls_list, port_list, params, op_method)
         params.append(commit_dict)
         return params
 
@@ -367,7 +368,7 @@ class OVSDBWriter(base_connection.BaseConnection):
                                                              ls_list)
                     params.append(query)
 
-    def _form_ports(self, ls_list, port_list, params):
+    def _form_ports(self, ls_list, port_list, params, op_method):
         for port in port_list:
             port_vlan_bindings = []
             outer_list = []
@@ -382,11 +383,22 @@ class OVSDBWriter(base_connection.BaseConnection):
                         outer_list.append([vlan_binding.vlan,
                                           ls_list])
             port_vlan_bindings.append(outer_list)
-            update_dict = {"op": "update",
-                           "table": "Physical_Port",
-                           "where": [["_uuid", "==",
-                                      ["uuid", port.uuid]]],
-                           "row": {"vlan_bindings": port_vlan_bindings}}
+            if op_method == 'CREATE':
+                update_dict = {"op": "mutate",
+                               "table": "Physical_Port",
+                               "where": [["_uuid", "==",
+                                          ["uuid", port.uuid]]],
+                               "mutations": [["vlan_bindings",
+                                              "insert",
+                                              port_vlan_bindings]]}
+            elif op_method == 'DELETE':
+                update_dict = {"op": "mutate",
+                               "table": "Physical_Port",
+                               "where": [["_uuid", "==",
+                                         ["uuid", port.uuid]]],
+                               "mutations": [["vlan_bindings",
+                                              "delete",
+                                              port_vlan_bindings]]}
             params.append(update_dict)
 
     def _get_physical_locator_dict(self, locator):

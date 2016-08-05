@@ -13,7 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import contextlib
 import socket
 
 import eventlet
@@ -117,16 +116,14 @@ class TestManager(base.BaseTestCase):
         gateway = l2gateway_config.L2GatewayConfig(self.fake_config_json)
         ovsdb_ident = self.fake_config_json.get(n_const.OVSDB_IDENTIFIER)
         self.l2gw_agent_manager.gateways[ovsdb_ident] = gateway
-        with contextlib.nested(
-            mock.patch.object(ovsdb_monitor,
-                              'OVSDBMonitor'),
-            mock.patch.object(eventlet.greenthread,
-                              'spawn_n'),
-            mock.patch.object(manager.OVSDBManager,
-                              'agent_to_plugin_rpc'),
-            mock.patch.object(self.plugin_rpc,
-                              'notify_ovsdb_states')
-        ) as (ovsdb_connection, event_spawn, call_back, notify):
+        with mock.patch.object(ovsdb_monitor,
+                               'OVSDBMonitor') as ovsdb_connection, \
+                mock.patch.object(eventlet.greenthread,
+                                  'spawn_n') as event_spawn, \
+                mock.patch.object(manager.OVSDBManager,
+                                  'agent_to_plugin_rpc') as call_back, \
+                mock.patch.object(self.plugin_rpc,
+                                  'notify_ovsdb_states') as notify:
             self.l2gw_agent_manager._connect_to_ovsdb_server()
             self.assertTrue(event_spawn.called)
             self.assertTrue(ovsdb_connection.called)
@@ -140,33 +137,28 @@ class TestManager(base.BaseTestCase):
         gateway = l2gateway_config.L2GatewayConfig(self.fake_config_json)
         ovsdb_ident = self.fake_config_json.get(n_const.OVSDB_IDENTIFIER)
         self.l2gw_agent_manager.gateways[ovsdb_ident] = gateway
-        with contextlib.nested(
-            mock.patch.object(ovsdb_monitor.OVSDBMonitor,
-                              '__init__',
-                              side_effect=socket.error
-                              ),
-            mock.patch.object(eventlet.greenthread,
-                              'spawn_n'),
-            mock.patch.object(manager.LOG, 'error')
-        ) as (ovsdb_connection, event_spawn, mock_warn):
-                self.l2gw_agent_manager._connect_to_ovsdb_server()
-                event_spawn.assert_not_called()
+        with mock.patch.object(ovsdb_monitor.OVSDBMonitor,
+                               '__init__',
+                               side_effect=socket.error
+                               ), \
+                mock.patch.object(eventlet.greenthread,
+                                  'spawn_n') as event_spawn, \
+                mock.patch.object(manager.LOG, 'error'):
+            self.l2gw_agent_manager._connect_to_ovsdb_server()
+            event_spawn.assert_not_called()
 
     def test_handle_report_state_failure(self):
         self.l2gw_agent_manager.l2gw_agent_type = n_const.MONITOR
-        with contextlib.nested(
-            mock.patch.object(self.l2gw_agent_manager,
-                              '_disconnect_all_ovsdb_servers'
-                              ),
-            mock.patch.object(agent_rpc.PluginReportStateAPI,
-                              'report_state',
-                              side_effect=Exception),
-            mock.patch.object(base_agent_manager.LOG,
-                              'exception'),
-            mock.patch.object(self.l2gw_agent_manager,
-                              '_stop_looping_task')
-        ) as (mock_disconnect_ovsdb_servers, mock_report_state,
-              mock_log, mock_stop_looping):
+        with mock.patch.object(self.l2gw_agent_manager,
+                               '_disconnect_all_ovsdb_servers'
+                               ) as mock_disconnect_ovsdb_servers, \
+                mock.patch.object(agent_rpc.PluginReportStateAPI,
+                                  'report_state',
+                                  side_effect=Exception), \
+                mock.patch.object(base_agent_manager.LOG,
+                                  'exception'), \
+                mock.patch.object(self.l2gw_agent_manager,
+                                  '_stop_looping_task') as mock_stop_looping:
             self.l2gw_agent_manager._report_state()
             self.assertEqual(self.l2gw_agent_manager.l2gw_agent_type,
                              '')
@@ -210,26 +202,23 @@ class TestManager(base.BaseTestCase):
         self.l2gw_agent_manager.gateways = {}
         gateway = l2gateway_config.L2GatewayConfig(self.fake_config_json)
         self.l2gw_agent_manager.gateways['fake_ovsdb_identifier'] = gateway
-        with contextlib.nested(
-            mock.patch.object(manager.LOG, 'warning'),
-            mock.patch.object(socket.socket, 'connect'),
-            mock.patch.object(ovsdb_writer.OVSDBWriter,
-                              'delete_logical_switch')
-        ) as (logger_call, mock_connect, mock_del_ls):
-                mock_connect.side_effect = socket.error
-                self.l2gw_agent_manager.delete_network(self.context,
-                                                       mock.Mock(),
-                                                       mock.Mock())
-                self.assertEqual(1, logger_call.call_count)
-                self.assertFalse(mock_del_ls.called)
+        with mock.patch.object(manager.LOG, 'warning') as logger_call, \
+                mock.patch.object(socket.socket, 'connect') as mock_connect, \
+                mock.patch.object(ovsdb_writer.OVSDBWriter,
+                                  'delete_logical_switch') as mock_del_ls:
+            mock_connect.side_effect = socket.error
+            self.l2gw_agent_manager.delete_network(self.context,
+                                                   mock.Mock(),
+                                                   mock.Mock())
+            self.assertEqual(1, logger_call.call_count)
+            self.assertFalse(mock_del_ls.called)
 
     def test_init_with_enable_manager(self):
         cfg.CONF.set_override('enable_manager', True, 'ovsdb')
-        with contextlib.nested(
-            mock.patch.object(manager.OVSDBManager,
-                              '_sock_open_connection'),
-            mock.patch.object(loopingcall, 'FixedIntervalLoopingCall')) as (
-                mock_sock_open_conn, mock_loop):
+        with mock.patch.object(manager.OVSDBManager,
+                               '_sock_open_connection') as mock_sock_open_conn, \
+                mock.patch.object(loopingcall,
+                                  'FixedIntervalLoopingCall') as mock_loop:
             self.l2gw_agent_manager.__init__()
             self.assertTrue(mock_sock_open_conn.called)
             self.assertTrue(mock_loop.called)
@@ -259,17 +248,17 @@ class TestManager(base.BaseTestCase):
         self.l2gw_agent_manager.conf.host = 'fake_host'
         self.l2gw_agent_manager.__init__()
         self.l2gw_agent_manager.l2gw_agent_type = n_const.MONITOR
-        with contextlib.nested(
-            mock.patch.object(ovsdb_common_class,
-                              'OVSDB_commom_class'),
-            mock.patch.object(eventlet.greenthread,
-                              'spawn_n'),
-            mock.patch.object(self.l2gw_agent_manager,
-                              '_start_looping_task_ovsdb_states')) as (
-                mock_ovsdb_common, mock_thread, mock_looping):
+        with mock.patch.object(ovsdb_common_class,
+                               'OVSDB_commom_class') as mock_ovsdb_common, \
+                mock.patch.object(eventlet.greenthread,
+                                  'spawn_n') as mock_thread, \
+                mock.patch.object(
+                    self.l2gw_agent_manager,
+                    '_start_looping_task_ovsdb_states') as mock_looping:
             self.l2gw_agent_manager.ovsdb_fd = mock_ovsdb_common.return_value
             self.l2gw_agent_manager.ovsdb_fd.check_monitor_table_thread = False
             self.l2gw_agent_manager.ovsdb_fd.check_sock_rcv = True
+            self.l2gw_agent_manager.ovsdb_fd.ovsdb_conn_list = ["fake_ip"]
             self.l2gw_agent_manager.ovsdb_fd.ovsdb_dicts = {
                 "fake_ip": "fake_sock"}
             self.l2gw_agent_manager.set_monitor_agent(self.context,
@@ -285,15 +274,16 @@ class TestManager(base.BaseTestCase):
         cfg.CONF.set_override('enable_manager', True, 'ovsdb')
         self.l2gw_agent_manager.__init__()
         self.l2gw_agent_manager.l2gw_agent_type = n_const.MONITOR
+        fake_op_method = 'CREATE'
         with mock.patch.object(ovsdb_common_class,
                                'OVSDB_commom_class') as mock_ovsdb_common:
             self.l2gw_agent_manager.ovsdb_fd = mock_ovsdb_common.return_value
             self.l2gw_agent_manager.update_connection_to_gateway(
                 self.context, mock.Mock(), mock.Mock(), mock.Mock(),
-                mock.Mock(), mock.Mock())
+                mock.Mock(), mock.Mock(), fake_op_method)
             (self.l2gw_agent_manager.ovsdb_fd.update_connection_to_gateway.
              assert_called_with(mock.ANY, mock.ANY, mock.ANY, mock.ANY,
-                                mock.ANY, False))
+                                mock.ANY, fake_op_method, False))
 
     def test_update_connection_to_gateway_for_transact_agent(self):
         """Test case to test update_connection_to_gateway
@@ -303,22 +293,44 @@ class TestManager(base.BaseTestCase):
         cfg.CONF.set_override('enable_manager', True, 'ovsdb')
         self.l2gw_agent_manager.__init__()
         self.l2gw_agent_manager.l2gw_agent_type = ''
-        with contextlib.nested(
-            mock.patch.object(ovsdb_common_class, 'OVSDB_commom_class'),
-            mock.patch.object(manager.OVSDBManager,
-                              '_sock_open_connection')) as (
-                mock_ovsdb_common, mock_open_conn):
+        fake_op_method = 'CREATE'
+        with mock.patch.object(ovsdb_common_class, 'OVSDB_commom_class') as mock_ovsdb_common, \
+                mock.patch.object(manager.OVSDBManager,
+                                  '_sock_open_connection') as mock_open_conn:
             self.l2gw_agent_manager.ovsdb_fd = mock_ovsdb_common.return_value
-            self.l2gw_agent_manager.ovsdb_fd.check_c_sock = True
+            self.l2gw_agent_manager.ovsdb_fd.ovsdb_conn_list = ['fake_ip']
             self.l2gw_agent_manager.update_connection_to_gateway(
-                self.context, mock.Mock(), mock.Mock(), mock.Mock(),
-                mock.Mock(), mock.Mock())
-            (self.l2gw_agent_manager.ovsdb_fd._echo_response.
-             assert_called_with(mock.ANY))
+                self.context, 'fake_ip', mock.Mock(), mock.Mock(),
+                mock.Mock(), mock.Mock(), fake_op_method)
             self.assertTrue(mock_open_conn.called)
             (self.l2gw_agent_manager.ovsdb_fd.update_connection_to_gateway.
              assert_called_with(mock.ANY, mock.ANY, mock.ANY, mock.ANY,
-                                mock.ANY))
+                                'fake_ip', fake_op_method, False))
+
+    def test_update_connection_to_gateway_for_enable_manager_false(self):
+        """Test case to test update_connection_to_gateway with
+
+        enable_manager=False.
+        """
+        cfg.CONF.set_override('enable_manager', False, 'ovsdb')
+        self.l2gw_agent_manager.__init__()
+        fake_op_method = 'CREATE'
+        with mock.patch.object(self.l2gw_agent_manager,
+                               '_is_valid_request', return_value=True) as mock_valid_req, \
+                mock.patch.object(ovsdb_writer, 'OVSDBWriter'
+                                  ) as mock_ovsdb_fd:
+            self.l2gw_agent_manager.update_connection_to_gateway(
+                self.context, 'fake_ovsdb_id', "fake_logical_switch_dict",
+                "fake_locator_dicts", "fake_mac_dicts", "fake_port_dicts",
+                fake_op_method)
+            ovsdb_sock_fd = mock_ovsdb_fd.return_value
+            mock_valid_req.assert_called_with('fake_ovsdb_id')
+            (ovsdb_sock_fd.update_connection_to_gateway.
+             assert_called_with("fake_logical_switch_dict",
+                                "fake_locator_dicts",
+                                "fake_mac_dicts",
+                                "fake_port_dicts",
+                                "fake_ovsdb_id", fake_op_method))
 
     def test_delete_network_for_monitor_agent(self):
         """Test case to test delete_network with enable_manager."""
@@ -333,25 +345,36 @@ class TestManager(base.BaseTestCase):
             (self.l2gw_agent_manager.ovsdb_fd.delete_logical_switch.
              assert_called_with("fake_logical_switch_uuid", mock.ANY, False))
 
+    def test_delete_network_for_enable_manager_false(self):
+        """Test case to test delete_network with enable_manager=False."""
+        cfg.CONF.set_override('enable_manager', False, 'ovsdb')
+        self.l2gw_agent_manager.__init__()
+        with mock.patch.object(self.l2gw_agent_manager,
+                               '_is_valid_request', return_value=True) as mock_valid_req, \
+                mock.patch.object(ovsdb_writer, 'OVSDBWriter'
+                                  ) as mock_ovsdb_fd:
+            self.l2gw_agent_manager.delete_network(
+                self.context, 'fake_ovsdb_id', "fake_logical_switch_uuid")
+            ovsdb_sock_fd = mock_ovsdb_fd.return_value
+            mock_valid_req.assert_called_with('fake_ovsdb_id')
+            (ovsdb_sock_fd.delete_logical_switch.
+             assert_called_with("fake_logical_switch_uuid", "fake_ovsdb_id"))
+
     def test_delete_network_for_transact_agent(self):
         """Test case to test delete_network with enable_manager."""
         cfg.CONF.set_override('enable_manager', True, 'ovsdb')
         self.l2gw_agent_manager.__init__()
         self.l2gw_agent_manager.l2gw_agent_type = ''
-        with contextlib.nested(
-            mock.patch.object(ovsdb_common_class, 'OVSDB_commom_class'),
-            mock.patch.object(manager.OVSDBManager,
-                              '_sock_open_connection')) as (
-                mock_ovsdb_common, mock_open_conn):
+        with mock.patch.object(ovsdb_common_class, 'OVSDB_commom_class') as mock_ovsdb_common, \
+                mock.patch.object(manager.OVSDBManager,
+                                  '_sock_open_connection') as mock_open_conn:
             self.l2gw_agent_manager.ovsdb_fd = mock_ovsdb_common.return_value
-            self.l2gw_agent_manager.ovsdb_fd.check_c_sock = True
+            self.l2gw_agent_manager.ovsdb_fd.ovsdb_conn_list = ['fake_ip']
             self.l2gw_agent_manager.delete_network(
-                self.context, mock.Mock(), "fake_logical_switch_uuid")
-            (self.l2gw_agent_manager.ovsdb_fd._echo_response.
-             assert_called_with(mock.ANY))
+                self.context, 'fake_ip', "fake_logical_switch_uuid")
             self.assertTrue(mock_open_conn.called)
             (self.l2gw_agent_manager.ovsdb_fd.delete_logical_switch.
-             assert_called_with("fake_logical_switch_uuid", mock.ANY, False))
+             assert_called_with("fake_logical_switch_uuid", 'fake_ip', False))
 
     def test_add_vif_to_gateway_for_monitor_agent(self):
         """Test case to test add_vif_to_gateway with enable_manager."""
@@ -374,23 +397,43 @@ class TestManager(base.BaseTestCase):
         cfg.CONF.set_override('enable_manager', True, 'ovsdb')
         self.l2gw_agent_manager.__init__()
         self.l2gw_agent_manager.l2gw_agent_type = ''
-        with contextlib.nested(
-            mock.patch.object(ovsdb_common_class, 'OVSDB_commom_class'),
-            mock.patch.object(manager.OVSDBManager,
-                              '_sock_open_connection')) as (
-                mock_ovsdb_common, mock_open_conn):
+        with mock.patch.object(ovsdb_common_class, 'OVSDB_commom_class') as mock_ovsdb_common, \
+                mock.patch.object(manager.OVSDBManager,
+                                  '_sock_open_connection') as mock_open_conn:
             self.l2gw_agent_manager.ovsdb_fd = mock_ovsdb_common.return_value
             self.l2gw_agent_manager.ovsdb_fd.check_c_sock = True
+            self.l2gw_agent_manager.ovsdb_fd.ovsdb_conn_list = ['fake_ip']
             self.l2gw_agent_manager.add_vif_to_gateway(
-                self.context, mock.Mock(), "fake_logical_switch_dict",
+                self.context, 'fake_ip', "fake_logical_switch_dict",
                 "fake_locator_dict", "fake_mac_dict")
-            (self.l2gw_agent_manager.ovsdb_fd._echo_response.
-             assert_called_with(mock.ANY))
             self.assertTrue(mock_open_conn.called)
             (self.l2gw_agent_manager.ovsdb_fd.insert_ucast_macs_remote.
              assert_called_with("fake_logical_switch_dict",
                                 "fake_locator_dict", "fake_mac_dict",
-                                mock.ANY))
+                                'fake_ip', False))
+
+    def test_add_vif_to_gateway_for_enable_manager_false(self):
+        """Test case to test add_vif_to_gateway with
+
+        enable_manager=False.
+        """
+        cfg.CONF.set_override('enable_manager', False, 'ovsdb')
+        self.l2gw_agent_manager.__init__()
+        with mock.patch.object(self.l2gw_agent_manager,
+                               '_is_valid_request',
+                               return_value=True) as mock_valid_req, \
+                mock.patch.object(ovsdb_writer, 'OVSDBWriter'
+                                  ) as mock_ovsdb_fd:
+            self.l2gw_agent_manager.add_vif_to_gateway(
+                self.context, 'fake_ovsdb_id', "fake_logical_switch_dict",
+                "fake_locator_dict", "fake_mac_dict")
+            ovsdb_sock_fd = mock_ovsdb_fd.return_value
+            mock_valid_req.assert_called_with('fake_ovsdb_id')
+            (ovsdb_sock_fd.insert_ucast_macs_remote.
+             assert_called_with("fake_logical_switch_dict",
+                                "fake_locator_dict",
+                                "fake_mac_dict",
+                                "fake_ovsdb_id"))
 
     def test_delete_vif_from_gateway_for_monitor_agent(self):
         """Test case to test delete_vif_to_gateway with enable_manager."""
@@ -407,29 +450,46 @@ class TestManager(base.BaseTestCase):
              assert_called_with("fake_logical_switch_uuid", "fake_mac",
                                 mock.ANY, False))
 
-    def test_delete_vif_to_gateway_for_transact_agent(self):
-        """Test case to test delete_vif_to_gateway with enable_manager."""
+    def test_delete_vif_from_gateway_for_transact_agent(self):
+        """Test case to test delete_vif_from_gateway with enable_manager."""
         cfg.CONF.set_override('enable_manager', True, 'ovsdb')
         self.l2gw_agent_manager.__init__()
         self.l2gw_agent_manager.l2gw_agent_type = ''
-        with contextlib.nested(
-            mock.patch.object(ovsdb_common_class, 'OVSDB_commom_class'),
-            mock.patch.object(manager.OVSDBManager,
-                              '_sock_open_connection')) as (
-                mock_ovsdb_common, mock_open_conn):
+        with mock.patch.object(ovsdb_common_class, 'OVSDB_commom_class') as mock_ovsdb_common, \
+                mock.patch.object(manager.OVSDBManager,
+                                  '_sock_open_connection') as mock_open_conn:
             self.l2gw_agent_manager.ovsdb_fd = mock_ovsdb_common.return_value
-            self.l2gw_agent_manager.ovsdb_fd.check_c_sock = True
+            self.l2gw_agent_manager.ovsdb_fd.ovsdb_conn_list = ['fake_ip']
             self.l2gw_agent_manager.delete_vif_from_gateway(
-                self.context, mock.Mock(), "fake_logical_switch_uuid",
+                self.context, 'fake_ip', "fake_logical_switch_uuid",
                 "fake_mac")
-            (self.l2gw_agent_manager.ovsdb_fd._echo_response.
-             assert_called_with(mock.ANY))
             self.assertTrue(mock_open_conn.called)
             (self.l2gw_agent_manager.ovsdb_fd.delete_ucast_macs_remote.
              assert_called_with("fake_logical_switch_uuid", "fake_mac",
-                                mock.ANY))
+                                'fake_ip', False))
 
-    def test_update_vif_from_gateway_for_monitor_agent(self):
+    def test_delete_vif_from_gateway_for_enable_manager_false(self):
+        """Test case to test delete_vif_from_gateway with
+
+        enable_manager=False.
+        """
+        cfg.CONF.set_override('enable_manager', False, 'ovsdb')
+        self.l2gw_agent_manager.__init__()
+        with mock.patch.object(self.l2gw_agent_manager,
+                               '_is_valid_request', return_value=True) as mock_valid_req, \
+                mock.patch.object(ovsdb_writer, 'OVSDBWriter'
+                                  ) as mock_ovsdb_fd:
+            self.l2gw_agent_manager.delete_vif_from_gateway(
+                self.context, 'fake_ovsdb_id', "fake_logical_switch_uuid",
+                "fake_mac")
+            ovsdb_sock_fd = mock_ovsdb_fd.return_value
+            mock_valid_req.assert_called_with('fake_ovsdb_id')
+            (ovsdb_sock_fd.delete_ucast_macs_remote.
+             assert_called_with("fake_logical_switch_uuid",
+                                "fake_mac",
+                                "fake_ovsdb_id"))
+
+    def test_update_vif_to_gateway_for_monitor_agent(self):
         """Test case to test update_vif_to_gateway with enable_manager."""
         cfg.CONF.set_override('enable_manager', True, 'ovsdb')
         self.l2gw_agent_manager.__init__()
@@ -452,19 +512,36 @@ class TestManager(base.BaseTestCase):
         cfg.CONF.set_override('enable_manager', True, 'ovsdb')
         self.l2gw_agent_manager.__init__()
         self.l2gw_agent_manager.l2gw_agent_type = ''
-        with contextlib.nested(
-            mock.patch.object(ovsdb_common_class, 'OVSDB_commom_class'),
-            mock.patch.object(manager.OVSDBManager,
-                              '_sock_open_connection')) as (
-                mock_ovsdb_common, mock_open_conn):
+        with mock.patch.object(ovsdb_common_class, 'OVSDB_commom_class') as mock_ovsdb_common, \
+                mock.patch.object(manager.OVSDBManager,
+                                  '_sock_open_connection') as mock_open_conn:
             self.l2gw_agent_manager.ovsdb_fd = mock_ovsdb_common.return_value
-            self.l2gw_agent_manager.ovsdb_fd.check_c_sock = True
+            self.l2gw_agent_manager.ovsdb_fd.ovsdb_conn_list = ['fake_ip']
             self.l2gw_agent_manager.update_vif_to_gateway(
-                self.context, mock.Mock(), "fake_logical_switch_uuid",
+                self.context, 'fake_ip', "fake_logical_switch_uuid",
                 "fake_mac")
-            (self.l2gw_agent_manager.ovsdb_fd._echo_response.
-             assert_called_with(mock.ANY))
             self.assertTrue(mock_open_conn.called)
             (self.l2gw_agent_manager.ovsdb_fd.update_ucast_macs_remote.
              assert_called_with("fake_logical_switch_uuid", "fake_mac",
-                                mock.ANY))
+                                'fake_ip', False))
+
+    def test_update_vif_to_gateway_for_enable_manager_false(self):
+        """Test case to test update_vif_to_gateway with
+
+        enable_manager=False.
+        """
+        cfg.CONF.set_override('enable_manager', False, 'ovsdb')
+        self.l2gw_agent_manager.__init__()
+        with mock.patch.object(self.l2gw_agent_manager,
+                               '_is_valid_request', return_value=True) as mock_valid_req, \
+                mock.patch.object(ovsdb_writer, 'OVSDBWriter'
+                                  ) as mock_ovsdb_fd:
+            self.l2gw_agent_manager.update_vif_to_gateway(
+                self.context, 'fake_ovsdb_id', "fake_locator_dict",
+                "fake_mac_dict")
+            ovsdb_sock_fd = mock_ovsdb_fd.return_value
+            mock_valid_req.assert_called_with('fake_ovsdb_id')
+            (ovsdb_sock_fd.update_ucast_macs_remote.
+             assert_called_with("fake_locator_dict",
+                                "fake_mac_dict",
+                                "fake_ovsdb_id"))

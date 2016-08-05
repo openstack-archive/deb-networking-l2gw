@@ -15,8 +15,9 @@
 #
 
 from neutronclient.common import extension
-from neutronclient.i18n import _
 from neutronclient.neutron import v2_0 as l2gatewayV20
+
+from networking_l2gw._i18n import _
 
 
 class L2GatewayConnection(extension.NeutronClientExtension):
@@ -53,9 +54,9 @@ class L2GatewayConnectionCreate(extension.ClientExtensionCreate,
         parser.add_argument(
             '--default-segmentation-id',
             dest='seg_id',
-            help=_('default segmentation-id that will'
-                   'be applied to the interfaces for which'
-                   'segmentation id was not specified'
+            help=_('default segmentation-id that will '
+                   'be applied to the interfaces for which '
+                   'segmentation id was not specified '
                    'in l2-gateway-create command.'))
         return parser
 

@@ -14,8 +14,8 @@
 # under the License.
 
 from neutron.api.v2 import base
-from neutron.common import exceptions
 
+from neutron_lib import exceptions
 from webob import exc as web_exc
 
 
@@ -31,6 +31,10 @@ class L2GatewayNotFound(exceptions.NotFound):
 class L2GatewayDeviceInUse(exceptions.InUse):
     message = _("L2 Gateway Device '%(device_id)s' is still used by "
                 "one or more network gateways.")
+
+
+class L2AgentNotFoundByHost(exceptions.NotFound):
+    message = _("L2 Agent for host '%(host)s' could not be found.")
 
 
 class L2GatewayDeviceNotFound(exceptions.NotFound):
@@ -79,8 +83,14 @@ class L2gatewaySegmentationIDNotFound(exceptions.NotFound):
                 "'%(gateway_id)s'")
 
 
-class MultipleSegmentsFound(exceptions.NeutronException):
-    message = _("Multiple segments found for the network  '%(network_id)s'")
+class MultipleVxlanSegmentsFound(exceptions.NeutronException):
+    message = _("Multiple Vxlan segments found for the network "
+                "'%(network_id)s'")
+
+
+class VxlanSegmentationIDNotFound(exceptions.NotFound):
+    message = _("vxlan segmentation id not found for the "
+                "network '%(network_id)s'")
 
 
 class L2GatewayInterfaceRequired(exceptions.NeutronException):
@@ -104,12 +114,32 @@ class L2GatewayDuplicateSegmentationID(exceptions.Conflict):
 class OVSDBError(exceptions.NeutronException):
     message = _("%(message)s")
 
+
+class L2GatewayServiceDriverError(exceptions.NeutronException):
+    """Service driver call failed."""
+    message = _("%(method)s failed.")
+
+
+class InvalidMethod(exceptions.NeutronException):
+    message = _("invalid method '%(op_method)s'")
+
+
 base.FAULT_MAP.update({L2GatewayInUse: web_exc.HTTPConflict,
                        L2GatewayPortInUse: web_exc.HTTPConflict,
                        L2GatewayConnectionExists: web_exc.HTTPConflict,
                        L2GatewayConnectionNotFound: web_exc.HTTPNotFound,
-                       MultipleSegmentsFound: web_exc.HTTPConflict,
+                       MultipleVxlanSegmentsFound: web_exc.HTTPConflict,
+                       VxlanSegmentationIDNotFound: web_exc.HTTPNotFound,
                        L2GatewaySegmentationRequired: web_exc.HTTPConflict,
                        L2MultipleGatewayConnections: web_exc.HTTPConflict,
                        L2GatewayDuplicateSegmentationID: web_exc.HTTPConflict,
+                       L2AgentNotFoundByHost: web_exc.HTTPNotFound,
                        OVSDBError: web_exc.HTTPConflict})
+
+
+class L3DvrAgentNotFound(exceptions.NotFound):
+    message = _("L3 agent could not be found")
+
+
+class DvrAgentHostnameNotFound(exceptions.NeutronException):
+    message = _("Hostname '%(host)' has 127.0.0.1 address")
