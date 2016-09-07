@@ -1,0 +1,9 @@
+Code-Review+2: Ofer Ben-Yacov <ofer.benyacov@gmail.com>
+Code-Review+1: Alex Szarka <szarka@inf.u-szeged.hu>
+Workflow+1: Ofer Ben-Yacov <ofer.benyacov@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 08 Aug 2016 09:08:55 +0000
+Reviewed-on: https://review.openstack.org/352179
+Project: openstack/deb-networking-l2gw
+Branch: refs/heads/master
