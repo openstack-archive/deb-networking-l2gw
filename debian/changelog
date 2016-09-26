@@ -9,6 +9,10 @@ networking-l2gw (1:1.0.0+git20160804.5f94dfa6-1) UNRELEASED; urgency=medium
   * Align (Build-)Depends with upstream.
   * d/rules,control: Switch to using os-testr for unit test execution.
 
+  [ Ondřej Nový ]
+  * d/s/options: extend-diff-ignore of .gitreview
+  * d/control: Using OpenStack's Gerrit as VCS URLs.
+
  -- Ondřej Nový <novy@ondrej.org>  Thu, 19 May 2016 21:00:51 +0200
 
 networking-l2gw (2015.1.1+git20151117.4ec821f-2) unstable; urgency=medium
