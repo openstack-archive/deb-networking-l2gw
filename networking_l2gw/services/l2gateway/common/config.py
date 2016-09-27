@@ -18,6 +18,8 @@ from neutron.common import config
 from oslo_config import cfg
 from oslo_log import log as logging
 
+from networking_l2gw._i18n import _
+
 LOG = logging.getLogger(__name__)
 
 OVSDB_OPTS = [
@@ -33,6 +35,13 @@ OVSDB_OPTS = [
     cfg.IntOpt('periodic_interval',
                default=20,
                help=_('Seconds between periodic task runs')),
+    cfg.IntOpt('socket_timeout',
+               default=30,
+               help=_('Socket timeout in seconds. '
+                      'If there is no echo request on the socket for '
+                      'socket_timeout seconds, the agent can safely '
+                      'assume that the connection with the remote '
+                      'OVSDB server is lost')),
     cfg.BoolOpt('enable_manager',
                 default=False,
                 help=_('Set to True if ovsdb Manager manages the client')),
@@ -66,7 +75,7 @@ L2GW_OPTS = [
     cfg.StrOpt('l2gw_callback_class',
                default='networking_l2gw.services.l2gateway.ovsdb.'
                        'data.L2GatewayOVSDBCallbacks',
-               help=_('L2 gateway plugin callback class where the'
+               help=_('L2 gateway plugin callback class where the '
                       'RPCs from the agent are going to get invoked'))
 ]
 
