@@ -1,8 +1,4 @@
-networking-l2gw (1:1.0.0+git20160927.29cb4fe3-1) experimental; urgency=medium
-
-  [ Ondřej Nový ]
-  * d/rules: Removed UPSTREAM_GIT with default value
-  * d/copyright: Changed source URL to https protocol
+networking-l2gw (1:1.0.0+git20160927.29cb4fe3-1) unstable; urgency=medium
 
   [ James Page ]
   * New upstream snapshot for OpenStack Newton (LP: #1610614).
@@ -18,6 +14,18 @@ networking-l2gw (1:1.0.0+git20160927.29cb4fe3-1) experimental; urgency=medium
   * d/s/options: extend-diff-ignore of .gitreview and egg-info.
 
  -- Thomas Goirand <zigo@debian.org>  Tue, 27 Sep 2016 15:26:29 +0200
+
+networking-l2gw (1:1.0.0-1) unstable; urgency=medium
+
+  [ James Page ]
+  * New upstream release.
+  * d/p/run-unit.patch: Ensure that unit tests are executed.
+
+  [ Ondřej Nový ]
+  * d/rules: Removed UPSTREAM_GIT with default value
+  * d/copyright: Changed source URL to https protocol
+
+ -- James Page <james.page@ubuntu.com>  Fri, 05 Aug 2016 17:05:52 +0100
 
 networking-l2gw (2015.1.1+git20151117.4ec821f-2) unstable; urgency=medium
 
