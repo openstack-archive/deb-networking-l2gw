@@ -1,0 +1,9 @@
+Code-Review+2: Ofer Ben-Yacov <ofer.benyacov@gmail.com>
+Code-Review+2: Sukhdev Kapur <sukhdevkapur@gmail.com>
+Workflow+1: Sukhdev Kapur <sukhdevkapur@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 07 Oct 2016 02:18:54 +0000
+Reviewed-on: https://review.openstack.org/380899
+Project: openstack/deb-networking-l2gw
+Branch: refs/heads/master
