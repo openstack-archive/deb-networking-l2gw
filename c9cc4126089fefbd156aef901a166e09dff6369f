@@ -1,0 +1,9 @@
+Code-Review+2: garyk <gkotton@vmware.com>
+Code-Review+2: Sukhdev Kapur <sukhdevkapur@gmail.com>
+Workflow+1: Sukhdev Kapur <sukhdevkapur@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Sun, 30 Oct 2016 09:09:46 +0000
+Reviewed-on: https://review.openstack.org/387071
+Project: openstack/deb-networking-l2gw
+Branch: refs/heads/master
