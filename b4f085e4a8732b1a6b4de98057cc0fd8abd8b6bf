@@ -1,0 +1,10 @@
+Code-Review+2: garyk <gkotton@vmware.com>
+Code-Review+1: JiXuefeng <jixuefeng@awcloud.com>
+Code-Review+2: Ihar Hrachyshka <ihrachys@redhat.com>
+Workflow+1: Ihar Hrachyshka <ihrachys@redhat.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 01 Nov 2016 14:31:22 +0000
+Reviewed-on: https://review.openstack.org/361804
+Project: openstack/deb-networking-l2gw
+Branch: refs/heads/master
