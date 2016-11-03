@@ -3,7 +3,6 @@ networking-l2gw (1:1.0.0+git20160927.29cb4fe3-1) unstable; urgency=medium
   [ James Page ]
   * New upstream snapshot for OpenStack Newton (LP: #1610614).
   * Align (Build-)Depends with upstream.
-  * d/rules,control: Switch to using os-testr for unit test execution.
 
   [ Thomas Goirand ]
   * New upstream release based on Git snapshot.
