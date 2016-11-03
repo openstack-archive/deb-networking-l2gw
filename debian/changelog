@@ -3,7 +3,6 @@ networking-l2gw (1:1.0.0+git20160927.29cb4fe3-1) unstable; urgency=medium
   [ James Page ]
   * New upstream snapshot for OpenStack Newton (LP: #1610614).
   * Align (Build-)Depends with upstream.
-  * d/rules,control: Switch to using os-testr for unit test execution.
 
   [ Thomas Goirand ]
   * New upstream release based on Git snapshot.
@@ -12,6 +11,7 @@ networking-l2gw (1:1.0.0+git20160927.29cb4fe3-1) unstable; urgency=medium
   * Using OpenStack's Gerrit as VCS URLs.
   * Point .gitreview to OpenStack's gerrit packaging-deb.
   * d/s/options: extend-diff-ignore of .gitreview and egg-info.
+  * Added lsb-base runtime depends (Debian only, not on Ubuntu).
 
  -- Thomas Goirand <zigo@debian.org>  Tue, 27 Sep 2016 15:26:29 +0200
 

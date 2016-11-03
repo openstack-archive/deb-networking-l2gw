@@ -17,7 +17,7 @@ Build-Depends-Indep: python-babel (>= 2.3.4),
                      python-neutron-lib (>= 0.4.0),
                      python-neutronclient (>= 1:5.1.0),
                      python-os-testr (>= 0.7.0),
-                     python-oslosphinx (>= 2.5.0),
+                     python-oslosphinx (>= 4.7.0),
                      python-oslotest (>= 1:1.10.0),
                      python-pbr (>= 1.8),
                      python-subunit (>= 0.0.18),
@@ -55,6 +55,7 @@ Architecture: all
 Section: python
 Depends: python-networking-l2gw (= ${binary:Version}),
          ${misc:Depends},
+         ${ostack-lsb-base},
          ${python:Depends},
 Description: OpenStack virtual network service - L2 gateway agent
  Neutron provides an API to dynamically request and configure virtual networks.
