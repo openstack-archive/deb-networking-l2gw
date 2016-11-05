@@ -5,7 +5,8 @@ networking-l2gw (1:1.0.0+git20160927.29cb4fe3-1) unstable; urgency=medium
   * Align (Build-)Depends with upstream.
 
   [ Thomas Goirand ]
-  * New upstream release based on Git snapshot.
+  * New upstream release based on Git snapshot:
+    - Builds correctly (Closes: #841080).
   * Fixed (build-)depends for this release.
   * Standards-Version: 3.9.8 (no change).
   * Using OpenStack's Gerrit as VCS URLs.
