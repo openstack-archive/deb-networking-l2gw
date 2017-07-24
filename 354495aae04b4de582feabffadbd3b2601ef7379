@@ -1,0 +1,10 @@
+Code-Review+2: garyk <gkotton@vmware.com>
+Code-Review+2: Ricardo Noriega <rnoriega@redhat.com>
+Code-Review+1: Cuong Nguyen <cuongnv@vn.fujitsu.com>
+Workflow+1: Ricardo Noriega <rnoriega@redhat.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 24 Jul 2017 15:23:05 +0000
+Reviewed-on: https://review.openstack.org/444620
+Project: openstack/deb-networking-l2gw
+Branch: refs/heads/master
